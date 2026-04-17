@@ -48,7 +48,7 @@ def get_mesh_coordinates(image_path, grid_size=20, margin=15):
     return mesh_list # 좌표 리스트 반환
 
 # --- 사용 예시 ---
-image_path = '/home/junsu/Downloads/heart.png'
+image_path = 'mesh_making/heart.png'
 # 좌표 리스트를 변수에 저장
 points_result = get_mesh_coordinates(image_path, grid_size=50, margin=20)
 

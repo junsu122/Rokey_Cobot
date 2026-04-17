@@ -55,7 +55,7 @@ def get_mesh_by_count(image_path, target_count=50, margin=20):
     return mesh_list
 
 # --- 사용 예시 ---
-image_path = '/home/junsu/Downloads/heart.png'
+image_path = 'mesh_making/heart.png'
 
 # "나는 점이 딱 100개 정도 있었으면 좋겠어"라고 설정
 points = get_mesh_by_count(image_path, target_count=80, margin=10)

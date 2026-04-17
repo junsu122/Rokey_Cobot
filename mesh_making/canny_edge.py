@@ -53,7 +53,7 @@ def detect_edges(image_path, low_threshold=50, high_threshold=150):
 # --- 사용 예시 ---
 # 준수님의 이미지 파일 경로로 변경해서 실행해 보세요.
 # 예: image_path = '/home/junsu/cobot_ws/src/my_package/images/robot.jpg'
-image_path = 'your_image_path_here.jpg' # 본인의 이미지 경로로 수정하세요!
+image_path = 'mesh_making/heart.png' # 본인의 이미지 경로로 수정하세요!
 
 # 기본 임계값으로 실행
 detect_edges(image_path)

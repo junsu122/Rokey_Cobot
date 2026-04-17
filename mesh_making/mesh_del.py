@@ -81,7 +81,7 @@ def get_bounded_mesh_with_centroids(image_path, target_count=300, margin=15):
     return all_points.tolist(), internal_simplices, centroids.tolist()
 
 # --- 실행 ---
-image_path = '/home/junsu/Downloads/heart.png'
+image_path = 'mesh_making/heart.png'
 points, mesh_data, centroid_points = get_bounded_mesh_with_centroids(image_path, target_count=11, margin=20) ####값 바꾸는곳####
 
 # 상위 5개 중심점 좌표 출력 확인
