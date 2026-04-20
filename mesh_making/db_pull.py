@@ -11,7 +11,7 @@ class FirebaseToRosPublisher(Node):
         super().__init__('firebase_to_ros_publisher')
         
         # 1. ROS 2 Publisher 설정
-        self.publisher_ = self.create_publisher(Float64MultiArray, 'new_parameter', 10)
+        self.publisher_ = self.create_publisher(Float64MultiArray, 'dsr01/new_parameter', 10)
         
         # 2. Firebase 초기화
         cred_path = "/home/junsu/Downloads/rokey-cobot-firebase-adminsdk-fbsvc-f2b3ddb804.json"
