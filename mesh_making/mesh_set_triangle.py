@@ -3,16 +3,16 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.spatial import Delaunay
 
-def get_balanced_mesh(image_path, internal_density=20, edge_sample_rate=0.01, margin=20):
+def get_balanced_mesh_transformed(image_path, internal_density=20, edge_sample_rate=0.01, 
+                                  margin=20, target_w=300, target_h=300):
     """
-    internal_density: 내부 점들 사이의 거리 (픽셀 단위). 
-                     값이 클수록 삼각형이 커지고, 작을수록 촘촘(작게)해집니다.
-    edge_sample_rate: 윤곽선 점의 밀도. 
-                     값이 작을수록 윤곽선 점이 많아져서 테두리 근처 삼각형이 작아집니다.
+    internal_density: 내부 점 간격 (삼각형 크기 조절)
+    edge_sample_rate: 윤곽선 점 밀도
+    target_w, target_h: 변환할 좌표계의 최대 범위 (우상단 좌표)
     """
     img = cv2.imread(image_path)
-    if img is None: return [], [], []
-    h, w = img.shape[:2]
+    if img is None: return [], [], [], []
+    h_img, w_img = img.shape[:2]
     
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
@@ -25,20 +25,16 @@ def get_balanced_mesh(image_path, internal_density=20, edge_sample_rate=0.01, ma
     
     edge_points = []
     for cnt in contours:
-        # epsilon 값을 조절하여 윤곽선 점의 개수(크기)를 조절합니다.
-        # edge_sample_rate가 작을수록 더 많은 점을 남깁니다.
         approx = cv2.approxPolyDP(cnt, edge_sample_rate * cv2.arcLength(cnt, True), True)
         for pt in approx:
             edge_points.append(pt[0])
     edge_points = np.array(edge_points)
 
-    # 2. 내부 점 간격 조절 (internal_density 사용)
+    # 2. 내부 점 간격 조절 (고정 밀도 방식)
     dist_transform = cv2.distanceTransform(mask, cv2.DIST_L2, 5)
-    
-    # 고정된 간격(internal_density)으로 점을 생성하여 삼각형 크기를 일정하게 유지합니다.
     internal_points = []
-    for y in range(0, h, internal_density):
-        for x in range(0, w, internal_density):
+    for y in range(0, h_img, internal_density):
+        for x in range(0, w_img, internal_density):
             if dist_transform[y, x] > margin:
                 internal_points.append([x, y])
     internal_points = np.array(internal_points)
@@ -47,41 +43,60 @@ def get_balanced_mesh(image_path, internal_density=20, edge_sample_rate=0.01, ma
     all_points = np.vstack((edge_points, internal_points))
     tri = Delaunay(all_points)
 
-    # 4. 내부 삼각형 및 중심점 계산
+    # 4. 내부 삼각형 및 픽셀 중심점 계산
     internal_simplices = []
-    centroids = []
+    centroids_px = []
     
     for simplex in tri.simplices:
         nodes = all_points[simplex]
-        centroid = np.mean(nodes, axis=0).astype(int)
+        centroid = np.mean(nodes, axis=0)
         
-        if 0 <= centroid[1] < h and 0 <= centroid[0] < w:
-            if mask[centroid[1], centroid[0]] == 255:
+        if 0 <= int(centroid[1]) < h_img and 0 <= int(centroid[0]) < w_img:
+            if mask[int(centroid[1]), int(centroid[0])] == 255:
                 internal_simplices.append(simplex)
-                centroids.append(centroid)
+                centroids_px.append(centroid)
     
-    centroids = np.array(centroids)
+    centroids_px = np.array(centroids_px)
 
-    # 시각화
+    # 5. [핵심] 좌하단 (0,0) 기준 및 300x300 스케일 변환
+    transformed_centroids = []
+    for pt in centroids_px:
+        # X 변환: (현재X / 이미지폭) * target_w
+        new_x = (pt[0] / w_img) * target_w
+        # Y 변환: (1 - (현재Y / 이미지높이)) * target_h (상하 반전)
+        new_y = (1 - (pt[1] / h_img)) * target_h
+        transformed_centroids.append([round(new_x, 2), round(new_y, 2)])
+
+    # 6. 시각화 (기존 시각화 기능 유지)
     plt.figure(figsize=(10, 10))
     plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     plt.triplot(all_points[:, 0], all_points[:, 1], internal_simplices, color='cyan', lw=1, alpha=0.6)
-    plt.scatter(centroids[:, 0], centroids[:, 1], c='yellow', s=10, label='Centroids')
-    plt.title(f"Density: {internal_density}, Edge Rate: {edge_sample_rate}\nTriangles: {len(centroids)}")
+    
+    if len(centroids_px) > 0:
+        plt.scatter(centroids_px[:, 0], centroids_px[:, 1], c='yellow', s=15, edgecolors='black', label='Centroids')
+    
+    plt.title(f"Density: {internal_density} | Target Scale: {target_w}x{target_h}\nTriangles: {len(centroids_px)}")
     plt.legend()
     plt.axis('off')
     plt.show()
 
-    return all_points.tolist(), internal_simplices, centroids.tolist()
+    # 원본 점, 메쉬 인덱스, 픽셀 중심점, 변환된 좌표 순으로 반환
+    return all_points.tolist(), internal_simplices, centroids_px.tolist(), transformed_centroids
 
-# --- 파라미터 조정하며 실행 ---
+# --- 실행 및 파라미터 조정 ---
 image_path = 'mesh_making/heart.png'
 
-# internal_density를 높이면 삼각형이 커지고, 낮추면 작아집니다.
-# edge_sample_rate를 조절하여 테두리 삼각형 크기를 내부와 맞춥니다.
-points, mesh, centroid_pts = get_balanced_mesh(image_path, 
-                                               internal_density=70, # 삼각형 크기 결정 (핵심!)
-                                               edge_sample_rate=0.008, # 테두리 점 밀도
-                                               margin=15)
+# 원하는 삼각형 크기와 좌표 범위를 설정하세요.
+points, mesh, raw_centroids, final_coords = get_balanced_mesh_transformed(
+    image_path, 
+    internal_density=70,    # 숫자를 키우면 삼각형이 커집니다.
+    edge_sample_rate=0.008, # 윤곽선 점 밀도
+    margin=15,              # 테두리 여유
+    target_w=300,           # 변환 좌표 X 범위
+    target_h=300            # 변환 좌표 Y 범위
+)
 
-print(f"추출된 중심점 개수: {len(centroid_pts)}")
+print(f"총 추출된 중심점 개수: {len(final_coords)}")
+print("--- 변환된 좌표 (좌하단 0,0 기준, Max 300,300) ---")
+for i, pt in enumerate(final_coords):
+    print(f"Point {i+1}: {pt}")
