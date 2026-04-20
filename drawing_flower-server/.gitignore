@@ -2,4 +2,4 @@ drawing-flower-key.json
 *.json
 __pycache__/
 *.pyc
-.env
+.env.local
