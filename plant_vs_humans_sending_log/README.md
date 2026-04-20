@@ -1,3 +1,6 @@
+2026-04-10: 로봇에 메시지 전송 및 로그 전달 등의 기능이 구현되어 있지 않습니다. 현재 UI만 구현되어 있습니다.
+
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
