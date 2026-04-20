@@ -17,14 +17,16 @@ CORS(app)  # React 로컬/배포 도메인 허용
 # ── Firebase 초기화 ──────────────────────────────────────────────
 # Render 환경변수에 서비스 계정 JSON 경로 또는 내용을 설정
 # (방법 A) 파일 경로
-cred_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "serviceAccountKey.json")
+import json
+cred_json = json.loads(os.environ["FIREBASE_CREDENTIALS_JSON"])
+cred = credentials.Certificate(cred_json)
 
 # (방법 B) JSON 문자열 환경변수로 직접 주입하는 경우 아래 주석 해제
 # import json
 # cred_json = json.loads(os.environ["FIREBASE_CREDENTIALS_JSON"])
 # cred = credentials.Certificate(cred_json)
 
-cred = credentials.Certificate(cred_path)
+
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
