@@ -46,6 +46,9 @@ target_pos_dic = {}
 target_up_pos_dic = {}
 target_up_pos_dic1 = {}
 target_up_pos_dic2 = {}
+target_up_pos_dic3 = {}
+target_up_pos_dic4 = {}
+
 
 # 티칭된 안전 위치
 HOME_JReady = [19.20, -6.90, 86.79, 0.07, 100.94, 13.81]
@@ -124,8 +127,18 @@ def perform_task():
     for i in sorted(posx_dic.keys()):
         target_pos_dic[i] = posx(posx_dic[i])
         up = posx_dic[i].copy()
-        up[1] += 150  
+        up[1] += 70  
         target_up_pos_dic[i] = posx(up)
+
+        up1 = posx_dic[i].copy()
+        up1[1] += 50
+        up1[2] += 50  
+        target_up_pos_dic3[i] = posx(up1)
+
+        up2 = posx_dic[i].copy()
+        up[1] += 50
+        up1[2] += 50  
+        target_up_pos_dic4[i] = posx(up2)
 
         exit_pos = posx_dic[i].copy()
         exit_pos[2] += 50 
@@ -149,6 +162,12 @@ def perform_task():
         node.get_logger().info("🚀 경유점(Way-point) 이동 중...")
         movej(WAYPOINT_J, vel=HOME_V_J, acc=HOME_ACC_J)
 
+        node.get_logger().info("🚀 경유점(Way-point) 이동 중...1")
+        movel(target_up_pos_dic3[i], vel=TARGET_V_L, acc=TARGET_A_L)
+
+        # node.get_logger().info("🚀 경유점(Way-point) 이동 중...2")
+        # movel(target_up_pos_dic4[i], vel=TARGET_V_L, acc=TARGET_A_L)
+
         # 2. 목표 위치 위로 접근 (104번 좌표계 기준)
         node.get_logger().info(f"📍 목표 상단 접근: {target_up_pos_dic[i]}")
         movel(target_up_pos_dic[i], vel=TARGET_V_L, acc=TARGET_A_L)
@@ -157,14 +176,16 @@ def perform_task():
         node.get_logger().info("⬇️ 삽입 시작")
         movel(target_pos_dic[i], vel=INSERT_V_L, acc=INSERT_A_L)
 
-        start_time = time.time()
-        while (time.time() - start_time) < 5.0:
-            force = get_tool_force()
-            if abs(force[1]) > 3.0:
-                node.get_logger().info("✅ 접촉 감지! 그리퍼 개방")
-                gripper_open()
-                break
-            wait(0.05)
+        # 힘제어 잠시 주석
+        # start_time = time.time()
+        # while (time.time() - start_time) < 5.0:
+        #     force = get_tool_force()
+        #     if abs(force[1]) > 3.0:
+        #         node.get_logger().info("✅ 접촉 감지! 그리퍼 개방")
+        #         gripper_open()
+        #         break
+        #     wait(0.05)
+        gripper_open()
         
         # 4. 안전하게 회피 이동
         movel(target_up_pos_dic1[i], vel=VELOCITY_L, acc=ACC_L)
