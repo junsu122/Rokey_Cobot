@@ -18,11 +18,18 @@ ROBOT_TCP   = "GripperDA_v1"
 # INSERT_V_L = 300; INSERT_A_L = 200
 # TARGET_V_L = 200; TARGET_A_L = 100
 
+# 엄청 빠른 버젼
+# HOME_V_J = 550; HOME_ACC_J = 350
+# CATCH_V_J = 550; CATCH_ACC_J = 350        
+# VELOCITY_L = 500; ACC_L = 350
+# INSERT_V_L = 600; INSERT_A_L = 500
+# TARGET_V_L = 350; TARGET_A_L = 200
+
 #1.5배 버젼
 HOME_V_J = 450; HOME_ACC_J = 300
 CATCH_V_J = 450; CATCH_ACC_J = 300        
 VELOCITY_L = 400; ACC_L = 300
-INSERT_V_L = 450; INSERT_A_L = 300
+INSERT_V_L = 600; INSERT_A_L = 500
 TARGET_V_L = 350; TARGET_A_L = 200
 
 # DR INIT
@@ -117,7 +124,7 @@ def perform_task():
     for i in sorted(posx_dic.keys()):
         target_pos_dic[i] = posx(posx_dic[i])
         up = posx_dic[i].copy()
-        up[1] += 50  
+        up[1] += 150  
         target_up_pos_dic[i] = posx(up)
 
         exit_pos = posx_dic[i].copy()
@@ -153,7 +160,7 @@ def perform_task():
         start_time = time.time()
         while (time.time() - start_time) < 5.0:
             force = get_tool_force()
-            if abs(force[1]) > 5.0:
+            if abs(force[1]) > 3.0:
                 node.get_logger().info("✅ 접촉 감지! 그리퍼 개방")
                 gripper_open()
                 break
