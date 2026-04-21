@@ -44,7 +44,9 @@ target_up_pos_dic1 = {}
 target_up_pos_dic2 = {}
 
 HOME_JReady = [19.20, -6.90, 86.79, 0.07, 100.94, 13.81]
-flower_initial_position_J = [40.25, 27.42, 63.42, 87.97, -40.38, 0.53]
+# flower_initial_position_J = [40.25, 27.42, 63.42, 87.97, -40.38, 0.53]
+flower_initial_position_J = [13.38, -1.58, 92.67, -88.80, 13.56, 0.04]
+
 
 # =========================
 # CALLBACK
