@@ -4,12 +4,12 @@ import { getStorage, ref as storageRef, uploadBytes } from 'firebase/storage';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "drawing-flower.firebaseapp.com",
-  projectId: "drawing-flower",
-  storageBucket: "drawing-flower.firebasestorage.app",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 const firebaseApp = initializeApp(firebaseConfig);
 const storage = getStorage(firebaseApp);
@@ -133,8 +133,8 @@ export default function App() {
 
   const robotStatus  = { isConnected: true, modelName: "Doosan M0609", isReady: true };
   const isRunning    = status === 'uploading' || status === 'processing';
-  const canRun       = robotStatus.isReady && !!originalImage && !isRunning;
-  const canAccept    = !!originalImage && !['uploading', 'processing', 'accepting'].includes(status);
+  const canAccept    = !!originalImage && !['uploading', 'processing', 'accepting', 'cancelling'].includes(status);
+  const canCancel    = status === 'accepted';
   const editorActive = !!originalImage;
 
   const flowerCount = pixelGrid.filter(Boolean).length;
@@ -229,14 +229,30 @@ export default function App() {
     } catch (err) { console.error(err); setStatus('error'); }
   };
 
+  // ── 주문 취소: cancel 문서에 0000 신호 저장 ──
+  const handleCancel = async () => {
+    if (!canCancel) return;
+    setStatus('cancelling');
+    try {
+      await setDoc(doc(db, 'pixel_coords', 'cancel_signal'), {
+        status: 'cancel',
+        coords: { "0": { x: 0.0, y: 0.0, z: 0.0, rx: 0.0, ry: 0.0, rz: 0.0 } },
+        timestamp: Date.now(),
+      });
+      setStatus('cancelled');
+    } catch (err) { console.error(err); setStatus('error'); }
+  };
+
   const statusLabel = {
-    idle:         '이미지를 선택하면 실시간 미리보기가 표시됩니다',
-    uploading:    '⏫ 업로드 중...',
-    processing:   '⚙️ 처리 중...',
-    preprocessed: '✏️ 픽셀을 조정하고 ACCEPT를 누르세요',
-    accepting:    '💾 좌표 저장 중...',
-    accepted:     `✅ 완료 (좌표 ${coords ? Object.keys(coords).length : 0}개)`,
-    error:        '❌ 오류 발생',
+    idle:        '이미지를 선택하면 실시간 미리보기가 표시됩니다',
+    uploading:   '⏫ 업로드 중...',
+    processing:  '⚙️ 처리 중...',
+    preprocessed:'✏️ 픽셀을 조정하고 ACCEPT를 누르세요',
+    accepting:   '💾 좌표 저장 중...',
+    accepted:    `✅ 완료 (좌표 ${coords ? Object.keys(coords).length : 0}개)`,
+    cancelling:  '🚫 주문 취소 중...',
+    cancelled:   '❌ 주문이 취소되었습니다',
+    error:       '❌ 오류 발생',
   }[status];
 
   return (
@@ -247,7 +263,7 @@ export default function App() {
         <header style={styles.header}>
           <div style={{ ...typography.title, fontSize: '28px', color: colors.textDark }}>DRAWING-FLOWER v2.0</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ ...typography.caption, fontSize: '16px', color: status === 'error' ? '#FA5252' : status === 'accepted' ? colors.accent : colors.textMedium }}>
+            <span style={{ ...typography.caption, fontSize: '16px', color: status === 'error' || status === 'cancelled' ? '#FA5252' : status === 'accepted' ? colors.accent : colors.textMedium }}>
               {statusLabel}
             </span>
             <div style={{ ...typography.caption, fontSize: '16px', fontWeight: 'bold', color: robotStatus.isReady ? '#40C057' : '#FA5252' }}>
@@ -360,21 +376,24 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 좌표 미리보기 */}
-              {coords && (
-                <div style={{ backgroundColor: colors.appBg, borderRadius: '10px', padding: '12px', maxHeight: '100px', overflowY: 'auto' }}>
-                  <div style={{ ...typography.caption, fontSize: '14px', marginBottom: '4px' }}>좌표 ({Object.keys(coords).length}개)</div>
-                  <pre style={{ fontSize: '13px', margin: 0, color: colors.textDark, lineHeight: 1.6 }}>
-                    {Object.entries(coords).slice(0, 4).map(([k, v]) => `${k}: [${v.x}, ${v.y}, ${v.z}]`).join('\n')}
-                    {Object.keys(coords).length > 4 ? '\n...' : ''}
-                  </pre>
-                </div>
-              )}
-
               {/* 버튼 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <button style={{ ...styles.btn, ...typography.button, backgroundColor: canAccept ? colors.accent : '#ADB5BD', opacity: canAccept ? 1 : 0.5 }} disabled={!canAccept} onClick={handleAccept}>
+                {/* ACCEPT */}
+                <button
+                  style={{ ...styles.btn, ...typography.button, backgroundColor: canAccept ? colors.accent : '#ADB5BD', opacity: canAccept ? 1 : 0.5 }}
+                  disabled={!canAccept}
+                  onClick={handleAccept}
+                >
                   {status === 'accepting' ? '저장 중...' : status === 'accepted' ? '✅ ACCEPTED' : 'ACCEPT'}
+                </button>
+
+                {/* 주문 취소 */}
+                <button
+                  style={{ ...styles.btn, ...typography.button, backgroundColor: canCancel ? '#FA5252' : '#ADB5BD', opacity: canCancel ? 1 : 0.4, fontSize: '18px' }}
+                  disabled={!canCancel}
+                  onClick={handleCancel}
+                >
+                  {status === 'cancelling' ? '취소 중...' : status === 'cancelled' ? '❌ 취소됨' : '🚫 주문 취소'}
                 </button>
               </div>
             </div>
