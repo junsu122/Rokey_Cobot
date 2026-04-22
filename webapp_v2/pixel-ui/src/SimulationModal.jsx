@@ -75,8 +75,8 @@ export default function SimulationModal({ coords, onClose }) {
   const maxZ = Math.max(...zs, 200) + 30;
 
   const toCanvas = useCallback((x, z, W, H) => {
-    const px = ((x - minX) / (maxX - minX)) * (W - 80) + 40;
-    const py = ((z - minZ) / (maxZ - minZ)) * (H - 80) + 40;
+    const px = (1 - (x - minX) / (maxX - minX)) * (W - 60) + 30;  // x 반전
+    const py = (1 - (z - minZ) / (maxZ - minZ)) * (H - 60) + 30;  // z 반전
     return [px, py];
   }, [minX, maxX, minZ, maxZ]);
 
@@ -84,6 +84,16 @@ export default function SimulationModal({ coords, onClose }) {
     "#E74C3C", "#FF6B9D", "#E67E22", "#F1C40F",
     "#2ECC71", "#3498DB", "#9B59B6", "#1ABC9C",
   ];
+
+  const coordList = Object.entries(coords || {})
+    .map(([, v]) => v)
+    .sort((a, b) => {
+      if (b.z !== a.z) return b.z - a.z;
+      return a.x - b.x;
+    });
+
+  console.log("첫 번째 좌표:", coordList[0]);
+  console.log("마지막 좌표:", coordList[coordList.length - 1]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;

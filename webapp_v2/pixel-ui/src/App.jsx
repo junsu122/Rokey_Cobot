@@ -41,6 +41,226 @@ const OUTPUT_AREA_W = 200.0, OUTPUT_AREA_H = 200.0;
 const OUTPUT_GAP = 2.0, OUTPUT_BASE_X = 0.0, OUTPUT_BASE_Z = -30.0;
 const PRICE_PER_FLOWER = 2000;
 
+const FLOWER_COLORS = [
+  "#E74C3C","#FF6B9D","#E67E22","#F1C40F",
+  "#2ECC71","#3498DB","#9B59B6","#1ABC9C",
+];
+
+// ── 꽃 그리기 ─────────────────────────────
+function drawFlower(ctx, cx, cy, size, color, opacity = 1.0) {
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.ellipse(0, -(size * 1.2) / 2, size * 0.25, size * 0.6, 0, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.beginPath();
+  ctx.arc(cx, cy, size * 0.35, 0, Math.PI * 2);
+  ctx.fillStyle = "#F1C40F";
+  ctx.fill();
+  ctx.strokeStyle = "#E67E22";
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSparkle(ctx, cx, cy, size) {
+  ctx.save();
+  ctx.globalAlpha = 0.7;
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(angle) * (size + 2), cy + Math.sin(angle) * (size + 2));
+    ctx.lineTo(cx + Math.cos(angle) * (size + 6), cy + Math.sin(angle) * (size + 6));
+    ctx.strokeStyle = "#FA5252";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ── 인라인 꽃꽂이 시뮬레이터 ─────────────
+function FlowerSimulator({ coords, onCancel, cancelStatus }) {
+  const canvasRef  = useRef(null);
+  const animRef    = useRef(null);
+  const frameRef   = useRef(0);
+  const plantedRef = useRef(new Set());
+  const currentRef = useRef(-1);
+  const animIdxRef = useRef(0);
+
+  const [currentIdx, setCurrentIdx]     = useState(-1);
+  const [plantedCount, setPlantedCount] = useState(0);
+  const [isAnimating, setIsAnimating]   = useState(false);
+
+  const coordList = Object.entries(coords || {})
+  .map(([, v]) => v)
+  .sort((a, b) => {
+    if (b.z !== a.z) return b.z - a.z;  // z 큰 것(아래)부터
+    return a.x - b.x;                    // x 작은 것(왼쪽)부터
+  });
+
+  const xs = coordList.map(c => c.x);
+  const zs = coordList.map(c => c.z);
+  const minX = Math.min(...xs, 0)   - 20;
+  const maxX = Math.max(...xs, 200) + 20;
+  const minZ = Math.min(...zs, 0)   - 20;
+  const maxZ = Math.max(...zs, 200) + 20;
+
+  const toCanvas = useCallback((x, z, W, H) => {
+    const px = ((x - minX) / (maxX - minX)) * (W - 60) + 30;
+    const py = ((z - minZ) / (maxZ - minZ)) * (H - 60) + 30;
+    return [px, py];
+  }, [minX, maxX, minZ, maxZ]);
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width, H = canvas.height;
+    const cur = currentRef.current;
+    frameRef.current += 1;
+
+    ctx.fillStyle = "#0d1117";
+    ctx.fillRect(0, 0, W, H);
+
+    // 격자
+    for (let i = 0; i <= 10; i++) {
+      const x = 30 + (i / 10) * (W - 60);
+      const y = 30 + (i / 10) * (H - 60);
+      ctx.strokeStyle = i % 3 === 0 ? "#1e2a1e" : "#161e16";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x, 30); ctx.lineTo(x, H - 30); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(30, y); ctx.lineTo(W - 30, y); ctx.stroke();
+    }
+    ctx.strokeStyle = "#1e3a1e";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(30, 30, W - 60, H - 60);
+
+    if (!coordList.length) return;
+
+    // 빈 자리
+    coordList.forEach((c, i) => {
+      if (plantedRef.current.has(i)) return;
+      const [px, py] = toCanvas(c.x, c.z, W, H);
+      ctx.beginPath();
+      ctx.arc(px, py, 6, 0, Math.PI * 2);
+      ctx.strokeStyle = "#1e3a1e";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+
+    // 심어진 꽃
+    plantedRef.current.forEach(i => {
+      if (i >= coordList.length) return;
+      const [px, py] = toCanvas(coordList[i].x, coordList[i].z, W, H);
+      drawFlower(ctx, px, py, 12, FLOWER_COLORS[i % FLOWER_COLORS.length]);
+    });
+
+    // 현재 심는 중
+    if (cur >= 0 && cur < coordList.length) {
+      const [px, py] = toCanvas(coordList[cur].x, coordList[cur].z, W, H);
+      const pulse = Math.abs(Math.sin(frameRef.current * 0.12));
+      ctx.beginPath();
+      ctx.arc(px, py, 16 + pulse * 6, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(250,82,82,${0.3 + pulse * 0.4})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      drawSparkle(ctx, px, py, 12 + pulse * 3);
+      drawFlower(ctx, px, py, 13, FLOWER_COLORS[cur % FLOWER_COLORS.length], 0.7 + pulse * 0.3);
+    }
+
+    // 진행 텍스트
+    ctx.fillStyle = "rgba(13,17,23,0.85)";
+    if (ctx.roundRect) ctx.roundRect(8, H - 36, 180, 28, 6);
+    else ctx.rect(8, H - 36, 180, 28);
+    ctx.fill();
+    ctx.fillStyle = cur >= 0 ? "#FA5252" : "#40C057";
+    ctx.font = "bold 12px monospace";
+    ctx.textAlign = "left";
+    if (cur >= 0) ctx.fillText(`🌸 심는 중... ${cur + 1} / ${coordList.length}`, 16, H - 17);
+    else if (plantedRef.current.size === coordList.length && coordList.length > 0)
+      ctx.fillText(`✅ 완료! ${coordList.length}송이`, 16, H - 17);
+    else ctx.fillText(`대기 중...`, 16, H - 17);
+  }, [coordList, toCanvas]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
+    resize();
+    window.addEventListener("resize", resize);
+    const loop = () => { draw(); animRef.current = requestAnimationFrame(loop); };
+    loop();
+    return () => { window.removeEventListener("resize", resize); cancelAnimationFrame(animRef.current); };
+  }, [draw]);
+
+  // pub.py가 published로 바꾸면 감지해서 애니메이션 시작
+  useEffect(() => {
+    if (!coords || isAnimating) return;
+    startAnimation();
+  }, [coords]);
+
+  const startAnimation = () => {
+    if (isAnimating || !coordList.length) return;
+    plantedRef.current = new Set();
+    setPlantedCount(0);
+    setIsAnimating(true);
+    animIdxRef.current = 0;
+
+    const step = () => {
+      const idx = animIdxRef.current;
+      if (idx >= coordList.length) {
+        plantedRef.current.add(idx - 1);
+        setPlantedCount(coordList.length);
+        setIsAnimating(false);
+        currentRef.current = -1;
+        setCurrentIdx(-1);
+        return;
+      }
+      if (idx > 0) { plantedRef.current.add(idx - 1); setPlantedCount(idx); }
+      currentRef.current = idx;
+      setCurrentIdx(idx);
+      animIdxRef.current += 1;
+      setTimeout(step, 700);
+    };
+    step();
+  };
+
+  const progress = coordList.length > 0 ? Math.round((plantedCount / coordList.length) * 100) : 0;
+
+  return (
+    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#0d1117', borderRadius: '16px', overflow: 'hidden' }}>
+      {/* 심플 헤더 */}
+      <div style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', borderBottom: '1px solid #2a2a3e', flexShrink: 0 }}>
+        <span style={{ fontSize: '13px', fontWeight: '700', color: '#e8e8f0', fontFamily: 'monospace' }}>
+          🌸 꽃꽂이 시뮬레이션
+        </span>
+        <span style={{ fontSize: '12px', color: '#40C057', fontFamily: 'monospace' }}>
+          {plantedCount} / {coordList.length} 송이
+        </span>
+      </div>
+
+      {/* 진행 바 */}
+      <div style={{ height: '4px', backgroundColor: '#2a2a3e', flexShrink: 0 }}>
+        <div style={{ height: '100%', width: `${progress}%`, background: 'linear-gradient(90deg, #2ECC71, #40C057)', transition: 'width 0.5s' }} />
+      </div>
+
+      {/* 캔버스 */}
+      <canvas ref={canvasRef} style={{ flex: 1, display: 'block', width: '100%' }} />
+    </div>
+  );
+}
+
+// ── 전처리 함수들 ─────────────────────────
 function preprocessImage(imageData, threshold, margin, symmetry) {
   const { width, height, data } = imageData;
   const binary = new Uint8Array(width * height);
@@ -66,7 +286,6 @@ function preprocessImage(imageData, threshold, margin, symmetry) {
   const newH = Math.max(1, Math.round(cropH * scale));
   const offsetX = Math.floor((NORM_W - newW) / 2);
   const offsetY = Math.floor((NORM_H - newH) / 2);
-
   const normArr = new Uint8ClampedArray(NORM_W * NORM_H * 4).fill(255);
   for (let y = 0; y < newH; y++)
     for (let x = 0; x < newW; x++) {
@@ -77,7 +296,6 @@ function preprocessImage(imageData, threshold, margin, symmetry) {
       normArr[dstIdx] = normArr[dstIdx+1] = normArr[dstIdx+2] = val;
       normArr[dstIdx+3] = 255;
     }
-
   let grid = Array(ROWS * COLS).fill(false);
   const cellW = NORM_W / COLS, cellH = NORM_H / ROWS;
   for (let row = 0; row < ROWS; row++)
@@ -86,7 +304,6 @@ function preprocessImage(imageData, threshold, margin, symmetry) {
       const py = Math.floor((row + 0.5) * cellH);
       grid[row * COLS + col] = normArr[(py * NORM_W + px) * 4] < 128;
     }
-
   if (symmetry)
     for (let row = 0; row < ROWS; row++)
       for (let col = 0; col < Math.floor(COLS / 2); col++) {
@@ -94,7 +311,6 @@ function preprocessImage(imageData, threshold, margin, symmetry) {
         if (grid[row * COLS + col] || grid[row * COLS + mirror])
           grid[row * COLS + col] = grid[row * COLS + mirror] = true;
       }
-
   return { normImageData: new ImageData(normArr, NORM_W, NORM_H), grid };
 }
 
@@ -114,6 +330,7 @@ function gridToCoords(pixelGrid) {
   return coords;
 }
 
+// ── 메인 앱 ──────────────────────────────
 export default function App() {
   const [originalImage, setOriginalImage] = useState(null);
   const [hasPreview, setHasPreview]       = useState(false);
@@ -125,6 +342,7 @@ export default function App() {
   const [margin, setMargin]               = useState(12);
   const [symmetry, setSymmetry]           = useState(true);
   const [progress]                        = useState(0);
+  const [showSim, setShowSim]             = useState(false); // 시뮬레이션 표시 여부
 
   const normCanvasRef  = useRef(null);
   const pixelCanvasRef = useRef(null);
@@ -133,9 +351,9 @@ export default function App() {
 
   const robotStatus  = { isConnected: true, modelName: "Doosan M0609", isReady: true };
   const isRunning    = status === 'uploading' || status === 'processing';
-  const canAccept    = !!originalImage && !['uploading', 'processing', 'accepting', 'cancelling'].includes(status);
+  const canAccept    = !!originalImage && !['uploading', 'processing', 'accepting', 'cancelling'].includes(status) && !showSim;
   const canCancel    = status === 'accepted';
-  const editorActive = !!originalImage;
+  const editorActive = !!originalImage && !showSim;
 
   const flowerCount = pixelGrid.filter(Boolean).length;
   const totalPrice  = flowerCount * PRICE_PER_FLOWER;
@@ -184,35 +402,11 @@ export default function App() {
       canvas.getContext('2d').drawImage(img, 0, 0);
       const imageData = canvas.getContext('2d').getImageData(0, 0, img.width, img.height);
       setOriginalImage({ file, url, imageData });
-      setStatus('idle'); setCoords(null); setCurrentDocId(null); setHasPreview(false);
+      setStatus('idle'); setCoords(null); setCurrentDocId(null);
+      setHasPreview(false); setShowSim(false);
       runLocalPreprocess(imageData, threshold, margin, symmetry);
     };
     img.src = url;
-  };
-
-  const handleRun = async () => {
-    if (!originalImage || isRunning) return;
-    setStatus('uploading');
-    try {
-      const { file } = originalImage;
-      const docId = `images_${file.name}`;
-      setCurrentDocId(docId);
-      await uploadBytes(storageRef(storage, `images/${file.name}`), file);
-      await setDoc(doc(db, 'pixel_jobs', docId), {
-        file: `images/${file.name}`, status: 'pending',
-        params: { threshold, margin, symmetry },
-      });
-      setStatus('processing');
-      if (unsubRef.current) unsubRef.current();
-      unsubRef.current = onSnapshot(doc(db, 'pixel_coords', docId), (snap) => {
-        if (!snap.exists() || snap.data().status !== 'preprocessed') return;
-        const grid = Array(ROWS * COLS).fill(false);
-        (snap.data().text_preview || '').split('\n').forEach((rowStr, r) =>
-          rowStr.trim().split(/\s+/).forEach((cell, c) => { if (cell === '■') grid[r * COLS + c] = true; })
-        );
-        setPixelGrid(grid); setStatus('preprocessed'); unsubRef.current?.();
-      });
-    } catch (err) { console.error(err); setStatus('error'); }
   };
 
   const handleAccept = async () => {
@@ -225,11 +419,12 @@ export default function App() {
         coords: newCoords, status: 'done',
         flowerCount, totalPrice,
       });
-      setCoords(newCoords); setStatus('accepted');
+      setCoords(newCoords);
+      setStatus('accepted');
+      setShowSim(true); // ← 시뮬레이션 화면으로 전환
     } catch (err) { console.error(err); setStatus('error'); }
   };
 
-  // ── 주문 취소: cancel 문서에 0000 신호 저장 ──
   const handleCancel = async () => {
     if (!canCancel) return;
     setStatus('cancelling');
@@ -240,26 +435,26 @@ export default function App() {
         timestamp: Date.now(),
       });
       setStatus('cancelled');
+      setShowSim(false); // 취소 시 에디터로 복귀
     } catch (err) { console.error(err); setStatus('error'); }
   };
 
   const statusLabel = {
-    idle:        '이미지를 선택하면 실시간 미리보기가 표시됩니다',
-    uploading:   '⏫ 업로드 중...',
-    processing:  '⚙️ 처리 중...',
-    preprocessed:'✏️ 픽셀을 조정하고 ACCEPT를 누르세요',
-    accepting:   '💾 좌표 저장 중...',
-    accepted:    `✅ 완료 (좌표 ${coords ? Object.keys(coords).length : 0}개)`,
-    cancelling:  '🚫 주문 취소 중...',
-    cancelled:   '❌ 주문이 취소되었습니다',
-    error:       '❌ 오류 발생',
+    idle:         '이미지를 선택하면 실시간 미리보기가 표시됩니다',
+    uploading:    '⏫ 업로드 중...',
+    processing:   '⚙️ 처리 중...',
+    preprocessed: '✏️ 픽셀을 조정하고 ACCEPT를 누르세요',
+    accepting:    '💾 좌표 저장 중...',
+    accepted:     `✅ 완료 (좌표 ${coords ? Object.keys(coords).length : 0}개)`,
+    cancelling:   '🚫 주문 취소 중...',
+    cancelled:    '❌ 주문이 취소되었습니다',
+    error:        '❌ 오류 발생',
   }[status];
 
   return (
     <div style={styles.outerContainer}>
       <div style={styles.appWrapper}>
 
-        {/* 헤더 */}
         <header style={styles.header}>
           <div style={{ ...typography.title, fontSize: '28px', color: colors.textDark }}>DRAWING-FLOWER v2.0</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -273,89 +468,81 @@ export default function App() {
         </header>
 
         <main style={styles.main}>
-          {/* 상단 3단 뷰어 */}
           <section style={styles.topSection}>
             <div style={styles.viewerContainer}>
               <div style={{ ...typography.title, fontSize: '20px', color: colors.textDark, marginBottom: '8px' }}>원본 이미지</div>
               <div style={{ ...styles.viewerDisplay, cursor: 'pointer' }} onClick={() => fileInputRef.current?.click()}>
-                {originalImage
-                  ? <img src={originalImage.url} alt="original" style={styles.viewerImg} />
-                  : <span style={{ ...typography.caption, fontSize: '18px' }}>클릭하여 이미지 선택</span>
-                }
+                {originalImage ? <img src={originalImage.url} alt="original" style={styles.viewerImg} /> : <span style={{ ...typography.caption, fontSize: '18px' }}>클릭하여 이미지 선택</span>}
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
               </div>
             </div>
-
             <div style={styles.viewerContainer}>
-              <div style={{ ...typography.title, fontSize: '20px', color: colors.textDark, marginBottom: '8px' }}>정규화된 이미지</div>
+              <div style={{ ...typography.title, fontSize: '20px', color: colors.textDark, marginBottom: '8px' }}>이미지 크기</div>
               <div style={styles.viewerDisplay}>
-                {hasPreview
-                  ? <canvas ref={normCanvasRef} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                  : <><span style={{ ...typography.caption, fontSize: '18px' }}>이미지를 선택하세요</span><canvas ref={normCanvasRef} style={{ display: 'none' }} /></>
-                }
+                {hasPreview ? <canvas ref={normCanvasRef} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} /> : <><span style={{ ...typography.caption, fontSize: '18px' }}>이미지를 선택하세요</span><canvas ref={normCanvasRef} style={{ display: 'none' }} /></>}
               </div>
             </div>
-
             <div style={styles.viewerContainer}>
               <div style={{ ...typography.title, fontSize: '20px', color: colors.textDark, marginBottom: '8px' }}>픽셀화된 이미지</div>
               <div style={styles.viewerDisplay}>
-                {hasPreview
-                  ? <canvas ref={pixelCanvasRef} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', imageRendering: 'pixelated' }} />
-                  : <><span style={{ ...typography.caption, fontSize: '18px' }}>이미지를 선택하세요</span><canvas ref={pixelCanvasRef} style={{ display: 'none' }} /></>
-                }
+                {hasPreview ? <canvas ref={pixelCanvasRef} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', imageRendering: 'pixelated' }} /> : <><span style={{ ...typography.caption, fontSize: '18px' }}>이미지를 선택하세요</span><canvas ref={pixelCanvasRef} style={{ display: 'none' }} /></>}
               </div>
             </div>
           </section>
 
           <section style={styles.bottomSection}>
-            {/* 픽셀 에디터 */}
-            <div style={{ ...styles.editorContainer, border: editorActive ? `2px solid ${colors.pastelBlue}` : '1px solid #F1F3F5' }}>
-              <div style={{ ...styles.editorHeader, flexWrap: 'wrap', gap: '12px' }}>
-                <div style={{ ...typography.title, fontSize: '20px', color: colors.textDark, flexShrink: 0 }}>픽셀 에디터</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ ...typography.content, fontSize: '16px', color: colors.textMedium }}>Threshold</span>
-                    <span style={{ ...typography.content, fontSize: '16px', color: colors.pastelBlue, minWidth: '32px', textAlign: 'right' }}>{threshold}</span>
-                    <input type="range" min={0} max={255} value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} style={{ ...styles.slider, width: '100px' }} />
+
+            {/* 픽셀 에디터 OR 시뮬레이션 */}
+            {showSim ? (
+              <div style={{ flex: 2.5, borderRadius: '16px', overflow: 'hidden' }}>
+                <FlowerSimulator coords={coords} />
+              </div>
+            ) : (
+              <div style={{ ...styles.editorContainer, border: editorActive ? `2px solid ${colors.pastelBlue}` : '1px solid #F1F3F5' }}>
+                <div style={{ ...styles.editorHeader, flexWrap: 'wrap', gap: '12px' }}>
+                  <div style={{ ...typography.title, fontSize: '20px', color: colors.textDark, flexShrink: 0 }}>픽셀 에디터</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ ...typography.content, fontSize: '16px', color: colors.textMedium }}>Threshold</span>
+                      <span style={{ ...typography.content, fontSize: '16px', color: colors.pastelBlue, minWidth: '32px', textAlign: 'right' }}>{threshold}</span>
+                      <input type="range" min={0} max={255} value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} style={{ ...styles.slider, width: '100px' }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ ...typography.content, fontSize: '16px', color: colors.textMedium }}>Margin</span>
+                      <span style={{ ...typography.content, fontSize: '16px', color: colors.pastelBlue, minWidth: '24px', textAlign: 'right' }}>{margin}</span>
+                      <input type="range" min={0} max={40} value={margin} onChange={(e) => setMargin(Number(e.target.value))} style={{ ...styles.slider, width: '100px' }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ ...typography.content, fontSize: '16px', color: colors.textMedium }}>좌우 대칭</span>
+                      <div onClick={() => setSymmetry(!symmetry)}
+                        style={{ width: '44px', height: '24px', borderRadius: '12px', cursor: 'pointer', backgroundColor: symmetry ? colors.pastelBlue : '#DEE2E6', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+                        <div style={{ position: 'absolute', top: '3px', left: symmetry ? '22px' : '3px', width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#fff', transition: 'left 0.2s' }} />
+                      </div>
+                    </div>
+                    {editorActive && <span style={{ ...typography.caption, fontSize: '14px', color: colors.pastelBlue }}>클릭으로 셀 토글</span>}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ ...typography.content, fontSize: '16px', color: colors.textMedium }}>Margin</span>
-                    <span style={{ ...typography.content, fontSize: '16px', color: colors.pastelBlue, minWidth: '24px', textAlign: 'right' }}>{margin}</span>
-                    <input type="range" min={0} max={40} value={margin} onChange={(e) => setMargin(Number(e.target.value))} style={{ ...styles.slider, width: '100px' }} />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ ...typography.content, fontSize: '16px', color: colors.textMedium }}>좌우 대칭</span>
-                    <div onClick={() => setSymmetry(!symmetry)}
-                      style={{ width: '44px', height: '24px', borderRadius: '12px', cursor: 'pointer', backgroundColor: symmetry ? colors.pastelBlue : '#DEE2E6', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
-                      <div style={{ position: 'absolute', top: '3px', left: symmetry ? '22px' : '3px', width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#fff', transition: 'left 0.2s' }} />
+                </div>
+                <div style={styles.canvasWrapper}>
+                  <div style={{ ...styles.canvas, transform: 'scale(1.96)', transformOrigin: 'center' }}>
+                    <div style={styles.pixelGrid}>
+                      {pixelGrid.map((filled, i) => {
+                        const row = Math.floor(i / COLS), col = i % COLS;
+                        const isEdge = row === 0 || row === ROWS-1 || col === 0 || col === COLS-1;
+                        return (
+                          <div key={i}
+                            style={{ ...styles.pixel, backgroundColor: filled ? (isEdge ? '#FA5252' : '#2C3E50') : '#FFFFFF', cursor: editorActive ? 'pointer' : 'default' }}
+                            onClick={() => { if (!editorActive) return; const n = [...pixelGrid]; n[i] = !n[i]; setPixelGrid(n); }}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
-                  {editorActive && <span style={{ ...typography.caption, fontSize: '14px', color: colors.pastelBlue }}>클릭으로 셀 토글</span>}
                 </div>
               </div>
-
-              <div style={styles.canvasWrapper}>
-                <div style={{ ...styles.canvas, transform: 'scale(1.96)', transformOrigin: 'center' }}>
-                  <div style={styles.pixelGrid}>
-                    {pixelGrid.map((filled, i) => {
-                      const row = Math.floor(i / COLS), col = i % COLS;
-                      const isEdge = row === 0 || row === ROWS-1 || col === 0 || col === COLS-1;
-                      return (
-                        <div key={i}
-                          style={{ ...styles.pixel, backgroundColor: filled ? (isEdge ? '#FA5252' : '#2C3E50') : '#FFFFFF', cursor: editorActive ? 'pointer' : 'default' }}
-                          onClick={() => { if (!editorActive) return; const n = [...pixelGrid]; n[i] = !n[i]; setPixelGrid(n); }}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
 
             {/* 우측 패널 */}
             <div style={styles.utilityPanel}>
-
-              {/* 진행율 */}
               <div>
                 <div style={{ ...typography.title, fontSize: '18px', textAlign: 'center', marginBottom: '14px' }}>진행율</div>
                 <div style={styles.progressBarBg}><div style={{ ...styles.progressBarFill, width: `${progress}%` }} /></div>
@@ -364,7 +551,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 꽃 개수 + 가격 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ backgroundColor: '#FFF0F6', borderRadius: '12px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '17px', fontWeight: '600', fontFamily: '"Noto Sans KR", sans-serif', color: '#E64980' }}>꽃 개수</span>
@@ -376,9 +562,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 버튼 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {/* ACCEPT */}
                 <button
                   style={{ ...styles.btn, ...typography.button, backgroundColor: canAccept ? colors.accent : '#ADB5BD', opacity: canAccept ? 1 : 0.5 }}
                   disabled={!canAccept}
@@ -386,8 +570,6 @@ export default function App() {
                 >
                   {status === 'accepting' ? '저장 중...' : status === 'accepted' ? '✅ ACCEPTED' : 'ACCEPT'}
                 </button>
-
-                {/* 주문 취소 */}
                 <button
                   style={{ ...styles.btn, ...typography.button, backgroundColor: canCancel ? '#FA5252' : '#ADB5BD', opacity: canCancel ? 1 : 0.4, fontSize: '18px' }}
                   disabled={!canCancel}
@@ -395,6 +577,14 @@ export default function App() {
                 >
                   {status === 'cancelling' ? '취소 중...' : status === 'cancelled' ? '❌ 취소됨' : '🚫 주문 취소'}
                 </button>
+                {showSim && (
+                  <button
+                    style={{ ...styles.btn, fontSize: '16px', fontWeight: '600', backgroundColor: '#2a2a3e', color: '#8b8ba0', fontFamily: '"Noto Sans KR", sans-serif' }}
+                    onClick={() => { setShowSim(false); setStatus('idle'); setCoords(null); setOriginalImage(null); setHasPreview(false); }}
+                  >
+                    ↺ 처음으로
+                  </button>
+                )}
               </div>
             </div>
           </section>
