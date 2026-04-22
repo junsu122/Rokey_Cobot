@@ -10,7 +10,7 @@ import time
 # CONFIGURATION
 # =========================
 ROBOT_ID = "dsr01"
-SERVICE_ACCOUNT_PATH = "/home/junsu/Downloads/serviceAccountKey.json"
+SERVICE_ACCOUNT_PATH = "/home/kng/Rokey_Cobot/webapp_v2/serviceAccountKey.json"
 
 
 CANCEL_SIGNAL = [0.0] * 6
