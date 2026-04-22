@@ -28,15 +28,20 @@ class DSRMonitorNode(Node):
 
         self.timer = self.create_timer(0.2, self.timer_callback)  # 5 Hz
         self.busy = False
-
     def timer_callback(self):
         if self.busy:
             return
         self.busy = True
+        self.pending = 3
 
         self.call_posx()
         self.call_force()
         self.call_joint_torque()
+
+    def check_done(self):
+        self.pending -= 1
+        if self.pending == 0:
+            self.busy = False
 
     def call_posx(self):
         req = GetCurrentPosx.Request()
