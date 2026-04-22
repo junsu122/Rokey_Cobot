@@ -94,13 +94,9 @@ class DSRMonitorNode(Node):
         self.busy = False
 
 
-def main(args=None):
+def STT_force_torque(args=None):
     rclpy.init(args=args)
     node = DSRMonitorNode()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
-
-
-if __name__ == '__main__':
-    main()
