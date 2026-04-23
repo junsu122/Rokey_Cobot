@@ -60,8 +60,8 @@ export function preprocessImage(imageData, margin, symmetry) {
 export function gridToCoords(pixelGrid) {
   const coords = {};
   let idx = 0;
-  for (let row = ROWS - 1; row >= 0; row--)
-    for (let col = 0; col < COLS; col++)
+  for (let row = ROWS - 1; row >= 0; row--)   // z 작은 것(아래)부터 → row 큰 것부터
+    for (let col = COLS - 1; col >= 0; col--)  // x 큰 것(오른쪽)부터
       if (pixelGrid[row * COLS + col])
         coords[String(idx++)] = {
           x: Math.round((OUTPUT_BASE_X + CELL_W / 2 + col * (CELL_W + OUTPUT_GAP)) * 10) / 10,
