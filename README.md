@@ -33,3 +33,7 @@ https://www.notion.so/1-3429c0a50e0d8080a62ec49c508a4a99?source=copy_link
 
 
 6. 액자 설치 실패
+
+모니터링 노드 실행 시 필요
+pip install textual
+pip install textual-plotext
