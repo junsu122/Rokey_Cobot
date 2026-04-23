@@ -8,8 +8,14 @@ Doosan M0609 Flower Robot 실시간 TUI 모니터링 노드
   /dsr01/robot_monitor_status  (std_msgs/String / JSON)
   → flower.py 의 hw_monitor_thread 가 300ms 주기로 발행
 
+[발행 토픽]
+  /dsr01/recovery_command  (std_msgs/String)
+  → TUI [R] 복구 버튼 클릭 시 "RECOVER" 발행
+    flower.py 가 수신하면 복구 절차 시작
+
 [키바인딩]
   Q : 종료
+  R : 복구 명령 전송 (안전정지/비상정지 대기 중일 때만 활성)
   P : TUI 일시정지/재개
 
 실행:    python3 monitor_node.py
@@ -28,7 +34,6 @@ import copy
 
 # ══════════════════════════════════════════════════════
 # 수신 상태 파싱
-# flower.py publish_status() JSON 키와 1:1 대응
 # ══════════════════════════════════════════════════════
 
 class RobotSnapshot:
@@ -49,18 +54,19 @@ class RobotSnapshot:
     }
 
     def __init__(self, d: dict):
-        self.fsm_state  = d.get("fsm",          "IDLE")
-        self.hw_code    = int(d.get("hw_code",   1))
-        self.cur_flower = int(d.get("cur_flower", 0))
-        self.done       = int(d.get("done",      0))
-        self.total      = int(d.get("total",     0))
-        self.resume_idx = int(d.get("resume_idx", 0))
-        self.countdown  = int(d.get("countdown", 0))
-        self.stamp      = d.get("stamp", time.time())
+        self.fsm_state        = d.get("fsm",              "IDLE")
+        self.hw_code          = int(d.get("hw_code",       1))
+        self.cur_flower       = int(d.get("cur_flower",    0))
+        self.done             = int(d.get("done",          0))
+        self.total            = int(d.get("total",         0))
+        self.resume_idx       = int(d.get("resume_idx",    0))
+        self.countdown        = int(d.get("countdown",     0))
+        self.stamp            = d.get("stamp",             time.time())
+        # ✅ flower.py 가 복구 버튼 대기 중인지 여부
+        self.waiting_recovery = bool(d.get("waiting_recovery", False))
 
     @property
     def connected(self):
-        # ✅ 8.0초 여유 — 이동 중 일시 지연에도 DISCONNECTED 로 바뀌지 않음
         return (time.time() - self.stamp) < 8.0
 
     @property
@@ -90,6 +96,12 @@ class MonitorNode(Node):
             self._cb,
             10,
         )
+
+        # ✅ 복구 명령 퍼블리셔
+        self._recovery_pub = self.create_publisher(
+            String, "/dsr01/recovery_command", 10
+        )
+
         self._add_log("INFO", "monitor_node 시작")
         self._add_log("INFO", "/dsr01/robot_monitor_status 구독 대기 중...")
 
@@ -120,6 +132,13 @@ class MonitorNode(Node):
         with self._lock:
             return list(self._logs)
 
+    def send_recovery(self):
+        """TUI 복구 버튼 → /dsr01/recovery_command 에 RECOVER 발행"""
+        out = String()
+        out.data = "RECOVER"
+        self._recovery_pub.publish(out)
+        self._add_log("OK", "🔧 복구 명령 전송 → flower_robot_main")
+
 
 # ══════════════════════════════════════════════════════
 # TUI 대시보드
@@ -127,7 +146,7 @@ class MonitorNode(Node):
 
 def run_tui(node: MonitorNode):
     from textual.app import App, ComposeResult
-    from textual.widgets import Header, Footer, Static, Label
+    from textual.widgets import Header, Footer, Static, Label, Button
     from textual.containers import Horizontal, Vertical, ScrollableContainer
     from textual.reactive import reactive
     from rich.text import Text
@@ -143,57 +162,9 @@ def run_tui(node: MonitorNode):
         ), pct
 
     # ──────────────────────────────────────────────────
-    # 위젯 1 : 안전 배너
-    # ──────────────────────────────────────────────────
-    class SafetyBanner(Static):
-        """
-        상태별 색상:
-          정상(IDLE/BASIC)     → 초록
-          일시정지(PAUSED)     → 파랑
-          취소(REPROCESS)      → 노랑
-          안전/비상정지         → 빨강
-          연결 없음             → 회색
-        """
-        DEFAULT_CSS = """
-        SafetyBanner {
-            height: 3;
-            content-align: center middle;
-            text-style: bold;
-        }
-        SafetyBanner.normal  { background: #0d2a1a; color: #2ea86a; }
-        SafetyBanner.paused  { background: #0d1f40; color: #58a6ff; }
-        SafetyBanner.warning { background: #2a2000; color: #d4a017; }
-        SafetyBanner.danger  { background: #2a0808; color: #e24b4a; }
-        SafetyBanner.disconn { background: #1a1a1a; color: #444444; }
-        """
-        status = reactive("disconn")
-
-        def render(self) -> Text:
-            cfg = {
-                "normal":  ("●", "NORMAL OPERATION",                      "#2ea86a"),
-                "paused":  ("⏸", "PAUSED — Play 신호 [2,2,2,2,2,2] 대기", "#58a6ff"),
-                "warning": ("↺", "CANCEL / REPROCESS — 홈 복귀 중",        "#d4a017"),
-                "danger":  ("✖", "STOP DETECTED — 안전정지 / 비상정지",     "#e24b4a"),
-                "disconn": ("○", "flower_robot_main 연결 대기 중...",       "#444444"),
-            }
-            icon, label, color = cfg.get(self.status, cfg["disconn"])
-            t = Text(
-                f"  {icon}  M0609 · Flower Robot  │  {label}  │  {icon}  ",
-                justify="center",
-            )
-            t.stylize(f"bold {color}")
-            return t
-
-        def watch_status(self, v: str):
-            for cls in ("normal", "paused", "warning", "danger", "disconn"):
-                self.remove_class(cls)
-            self.add_class(v)
-
-    # ──────────────────────────────────────────────────
     # 위젯 2 : 공정 상태
     # ──────────────────────────────────────────────────
     class ProcessPanel(Static):
-        """FSM 상태 / 꽃 진행 바 / 현재 꽃 번호 / 비상정지 카운트다운"""
         DEFAULT_CSS = "ProcessPanel { border: solid #1e2d3d; padding: 0 1; height: 11; }"
 
         def compose(self):
@@ -233,15 +204,14 @@ def run_tui(node: MonitorNode):
     # 위젯 3 : 하드웨어 상태
     # ──────────────────────────────────────────────────
     class HWPanel(Static):
-        """get_robot_state() 코드 + 상태 설명 + SetRobotControl 복구 안내"""
         DEFAULT_CSS = "HWPanel { border: solid #1e2d3d; padding: 0 1; height: 11; }"
 
         HW_GUIDE = {
             1: "[dim]—[/]",
             2: "[dim]—[/]",
-            3: "[yellow]→ SetRobotControl(3) 서보 ON 시도[/]",
-            5: "[yellow]→ SetRobotControl(2) 보호 정지 해제[/]",
-            6: "[red]→ 버튼 해제 후 SetRobotControl(3)[/]",
+            3: "[yellow]→ TUI 복구 버튼([R])으로 서보 ON[/]",
+            5: "[yellow]→ TUI 복구 버튼([R])으로 보호 정지 해제[/]",
+            6: "[red]→ 버튼 먼저 해제 후 TUI 복구 버튼([R]) 클릭[/]",
         }
 
         def compose(self):
@@ -253,7 +223,7 @@ def run_tui(node: MonitorNode):
                 self.query_one("#hw_body", Static).update("[dim]—[/]")
                 return
             guide = self.HW_GUIDE.get(s.hw_code, "[dim]—[/]")
-            pulse = " [blink]●[/]" if s.hw_code in (3, 5, 6) else " ●"
+            pulse = " ●"
             body  = (
                 f"[dim]Code    :[/]  [{s.hw_color}]{s.hw_code}[/]\n"
                 f"[dim]State   :[/]  [{s.hw_color}]{s.hw_label}[/]{pulse}\n"
@@ -263,10 +233,72 @@ def run_tui(node: MonitorNode):
             self.query_one("#hw_body", Static).update(body)
 
     # ──────────────────────────────────────────────────
+    # ✅ 위젯 NEW : 수동 복구 패널
+    #    waiting_recovery == True 일 때 메시지 + 버튼 표시
+    #    색상 전환/blink 없이 정적으로 표시
+    # ──────────────────────────────────────────────────
+    class RecoveryPanel(Static):
+        """
+        안전정지 / 비상정지 발생 시 flower.py 가 복구 승인을 기다림.
+        [복구 실행] 버튼 클릭 또는 [R] 키로 RECOVER 발행.
+        배너·깜빡임 없이 메시지와 버튼만 표시.
+        """
+        DEFAULT_CSS = """
+        RecoveryPanel {
+            border: solid #1e2d3d;
+            padding: 0 1;
+            height: 7;
+        }
+        RecoveryPanel Button {
+            width: 100%;
+            margin-top: 1;
+        }
+        """
+
+        # 마지막으로 렌더링한 armed 상태를 기억 → 동일하면 DOM 갱신 생략
+        _last_armed: bool = False
+
+        def compose(self):
+            yield Label("[bold #c3aed6]◈ MANUAL RECOVERY[/]")
+            yield Static("[dim]정상 운전 중[/]", id="recovery_status")
+            yield Button("복구 실행  [R]", id="recovery_btn", disabled=True)
+
+        def update_data(self, s: RobotSnapshot):
+            armed = s.waiting_recovery
+
+            # 상태 변화가 없으면 DOM 건드리지 않음 → 깜빡임 원천 차단
+            if armed == self._last_armed:
+                return
+            self._last_armed = armed
+
+            st  = self.query_one("#recovery_status", Static)
+            btn = self.query_one("#recovery_btn", Button)
+
+            if armed:
+                stop_label = {
+                    5: "안전정지 (Protective Stop)",
+                    6: "비상정지 (Emergency Stop)",
+                    3: "서보 꺼짐 (Safe Off)",
+                }.get(s.hw_code, "정지 감지")
+                st.update(
+                    f"[yellow]{stop_label} 발생[/]\n"
+                    f"[dim]{s.resume_idx + 1}번 꽃부터 재개 예정 — 확인 후 복구 버튼을 누르세요[/]"
+                )
+                btn.disabled = False
+                btn.label    = "⚙  복구 실행  [R]"
+            else:
+                st.update("[dim]정상 운전 중[/]")
+                btn.disabled = True
+                btn.label    = "복구 실행  [R]"
+
+        def on_button_pressed(self, event: Button.Pressed):
+            if event.button.id == "recovery_btn" and not event.button.disabled:
+                node.send_recovery()
+
+    # ──────────────────────────────────────────────────
     # 위젯 4 : 꽃 그리드
     # ──────────────────────────────────────────────────
     class FlowerGridPanel(Static):
-        """전체 꽃 번호 그리드 — 완료(초록) / 현재(노랑) / 대기(회색)"""
         DEFAULT_CSS = "FlowerGridPanel { border: solid #1e2d3d; padding: 0 1; height: 9; }"
         COLS = 20
 
@@ -307,7 +339,6 @@ def run_tui(node: MonitorNode):
     # 위젯 5 : Resume 정보
     # ──────────────────────────────────────────────────
     class ResumePanel(Static):
-        """정지 시 재개 예정 꽃 번호 / 평상시엔 완료·남은 개수 요약"""
         DEFAULT_CSS = "ResumePanel { border: solid #1e2d3d; padding: 0 1; height: 5; }"
 
         def compose(self):
@@ -341,7 +372,6 @@ def run_tui(node: MonitorNode):
     # 위젯 6 : 이벤트 로그
     # ──────────────────────────────────────────────────
     class EventLogPanel(ScrollableContainer):
-        """flower_robot_main 에서 수신한 이벤트 로그 실시간 표시"""
         DEFAULT_CSS = "EventLogPanel { border: solid #1e2d3d; padding: 0 1; height: 27; }"
 
         def compose(self):
@@ -379,8 +409,9 @@ def run_tui(node: MonitorNode):
         """
 
         BINDINGS = [
-            ("q", "quit",      "Quit"),
-            ("p", "pause_tui", "Pause / Resume TUI"),
+            ("q", "quit",        "Quit"),
+            ("r", "send_recover","Recover [R]"),
+            ("p", "pause_tui",   "Pause / Resume TUI"),
         ]
 
         def __init__(self):
@@ -389,7 +420,6 @@ def run_tui(node: MonitorNode):
 
         def compose(self) -> ComposeResult:
             yield Header()
-            yield SafetyBanner(id="safety_banner")
             with Horizontal():
                 with Vertical(classes="left"):
                     yield ProcessPanel(id="proc_panel")
@@ -397,6 +427,7 @@ def run_tui(node: MonitorNode):
                     yield ResumePanel(id="resume_panel")
                 with Vertical(classes="right"):
                     yield HWPanel(id="hw_panel")
+                    yield RecoveryPanel(id="recovery_panel")
                     yield EventLogPanel(id="event_log")
             yield Footer()
 
@@ -410,24 +441,22 @@ def run_tui(node: MonitorNode):
             s    = node.get_snapshot()
             logs = node.get_logs()
 
-            self.query_one("#proc_panel",   ProcessPanel).update_data(s)
-            self.query_one("#hw_panel",     HWPanel).update_data(s)
-            self.query_one("#grid_panel",   FlowerGridPanel).update_data(s)
-            self.query_one("#resume_panel", ResumePanel).update_data(s)
-            self.query_one("#event_log",    EventLogPanel).update_data(logs)
+            self.query_one("#proc_panel",     ProcessPanel).update_data(s)
+            self.query_one("#hw_panel",       HWPanel).update_data(s)
+            self.query_one("#grid_panel",     FlowerGridPanel).update_data(s)
+            self.query_one("#resume_panel",   ResumePanel).update_data(s)
+            self.query_one("#recovery_panel", RecoveryPanel).update_data(s)
+            self.query_one("#event_log",      EventLogPanel).update_data(logs)
 
-            # 배너 상태 결정
-            banner = self.query_one("#safety_banner", SafetyBanner)
-            if not s.connected:
-                banner.status = "disconn"
-            elif s.hw_code in (3, 5, 6):
-                banner.status = "danger"
-            elif s.fsm_state == "PAUSED":
-                banner.status = "paused"
-            elif s.fsm_state == "REPROCESS":
-                banner.status = "warning"
+        # ✅ [R] 키 바인딩 → 복구 명령 전송
+        def action_send_recover(self):
+            s = node.get_snapshot()
+            if s.waiting_recovery:
+                node.send_recovery()
             else:
-                banner.status = "normal"
+                node.get_logs()  # 로그만 찍고 무시 (대기 중 아닐 때)
+                # 조작 오류 방지: 대기 상태가 아니면 아무것도 안 함
+                pass
 
         def action_pause_tui(self):
             self._paused = not self._paused
@@ -448,8 +477,6 @@ def main(args=None):
     rclpy.init(args=args)
     node = MonitorNode()
 
-    # ROS2 spin 을 별도 스레드에서 실행
-    # (Textual TUI 가 메인 스레드를 점유하므로)
     spin_thread = threading.Thread(
         target=rclpy.spin,
         args=(node,),
