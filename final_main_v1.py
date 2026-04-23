@@ -52,6 +52,7 @@ re_process             = False
 new_param_received     = False
 posx_dic               = {}
 resume_from_index      = 0
+emergency_triggered = False  # ✅ 비상정지 후 복귀했는지 확인하는 플래그
 
 # ✅ 전역 좌표 딕셔너리
 target_pos_dic     = {}
@@ -155,6 +156,7 @@ def perform_task():
     global new_param_received, cancel_signal_received, basic_process, re_process
     global pause_signal, current_state, resume_from_index
     global target_pos_dic, target_up_pos_dic, target_up_pos_dic1, target_up_pos_dic3
+    global emergency_triggered  # ✅ 이 줄을 추가하세요!
 
     node = DR_init.__dsr__node
 
@@ -273,14 +275,16 @@ def perform_task():
 
     # ✅ 🔴 비상정지(6) 처리 (메인 스레드에서 호출)
     def handle_emergency_stop(current_flower_idx):
+        global emergency_triggered # ✅ 전역 변수 사용 선언
         msg = f"비상정지(6) 감지! 홈 복귀 ({current_flower_idx + 1}번 꽃 재개 예정)"
         node.get_logger().error(f"🔴 {msg}")
         publish_status(msg, "ERROR")
         try:
-            gripper_open()
+            # gripper_open()                                                       ############그리퍼에 있는 꼭 떨어트리지 말고 실행하기 위한 주석###################
             movej(HOME_JReady, vel=HOME_V_J, acc=HOME_ACC_J)
         except Exception as e:
             node.get_logger().error(f"홈 복귀 오류: {e}")
+            
 
         # 해제될 때까지 메인 스레드에서 폴링
         node.get_logger().error("🔴 비상정지 해제 대기 중...")
@@ -295,6 +299,9 @@ def perform_task():
             CONTROL_RESET_SAFE_OFF,
             "⚡ 비상정지 해제 후 서보 ON 시도..."
         )
+
+        emergency_triggered = True # ✅ 복구 완료되었음을 표시
+        node.get_logger().info("🟢 비상정지 복구 완료 - 다음 그리퍼 오픈 스킵 활성화")
 
         node.get_logger().info("🟢 5초 후 자동 재개...")
         for r in range(5, 0, -1):
@@ -372,7 +379,13 @@ def perform_task():
                         target_up_pos_dic1[i] = posx(exit_pos)
 
                 movej(HOME_JReady, vel=HOME_V_J, acc=HOME_ACC_J)
-                gripper_open()
+
+                # ✅ 비상정지 복구 후라면 그리퍼를 열지 않고 통과
+                if emergency_triggered:
+                    node.get_logger().info("⚠️ 비상정지 복구 직후이므로 gripper_open을 건너뜁니다.")
+                    emergency_triggered = False # 다음번을 위해 플래그 초기화
+                else:
+                    gripper_open()
 
                 for i in sorted(target_pos_dic.keys()):
                     if i < resume_from_index:
@@ -411,14 +424,24 @@ def perform_task():
                     resume_from_index = i + 1
                     node.get_logger().info(f"✅ {i+1}번 꽃 완료")
                     publish_status(f"{i+1}번 꽃 완료", "OK")
-
+                    
                 if cancel_signal_received:
                     current_state = STATE_REPROCESS
                 else:
+                    # ✅ 1. 모든 공정 완료 로그 출력 및 상태 전송
+                    node.get_logger().info("🎊 모든 공정이 완료되었습니다!")
+                    publish_status("공정 완료 - 작업이 성공적으로 끝났습니다!", "OK")
+                    
+                    # ✅ 2. 로봇을 홈 포지션으로 안전하게 이동
                     movej(HOME_JReady, vel=HOME_V_J, acc=HOME_ACC_J)
+                    
+                    # ✅ 3. 상태 초기화 (IDLE로 복귀하여 새 좌표 대기)
                     resume_from_index = 0
                     current_state     = STATE_IDLE
-                    publish_status("모든 작업 완료 → IDLE", "OK")
+                    
+                    # ✅ 4. 완료 후 사용자 알림용 로그 (선택사항)
+                    node.get_logger().info("🔙 IDLE 상태로 복귀. 새로운 좌표를 받을 준비가 되었습니다.")
+                    publish_status("완성되었습니다! (IDLE 복귀)", "OK")
 
             # 3. REPROCESS
             elif current_state == STATE_REPROCESS:
