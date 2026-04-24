@@ -95,9 +95,9 @@ class ParameterPublisher(Node):
 
                     #################오프셋주는곳##################
                     if raw not in [CANCEL_SIGNAL, PAUSE_SIGNAL, RESUME_SIGNAL]:
-                        raw[0] += 0.0
+                        raw[0] += -15.0
                         raw[1] += 0.0
-                        raw[2] += 0.0
+                        raw[2] += -20.0
                     processed_coords.append(raw)
 
                 flat_data = [val for sublist in processed_coords for val in sublist]
