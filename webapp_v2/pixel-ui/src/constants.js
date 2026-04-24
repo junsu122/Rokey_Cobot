@@ -6,7 +6,7 @@ export const OUTPUT_AREA_W = 200.0;
 export const OUTPUT_AREA_H = 200.0;
 export const OUTPUT_GAP = 2.0;
 export const OUTPUT_BASE_X = 0.0;
-export const OUTPUT_BASE_Z = -30.0;
+export const OUTPUT_BASE_Z = 0.0;
 export const PRICE_PER_FLOWER = 2000;
 export const THRESHOLD = 210;
 

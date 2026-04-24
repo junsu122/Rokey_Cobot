@@ -5,20 +5,23 @@ import {
 } from './constants';
 import { drawFlower, drawSparkle } from './canvasDraw';
 
-export default function FlowerSimulator({ coords, paused }) {
+export default function FlowerSimulator({ coords, paused, robotProgress, robotTotal, currentFlower }) {
   const canvasRef  = useRef(null);
   const animRef    = useRef(null);
   const frameRef   = useRef(0);
   const plantedRef = useRef(new Set());
   const currentRef = useRef(-1);
-  const animIdxRef = useRef(0);
   const pausedRef  = useRef(false);
 
-  const [currentIdx, setCurrentIdx]     = useState(-1);
-  const [plantedCount, setPlantedCount] = useState(0);
-  const [isAnimating, setIsAnimating]   = useState(false);
-
   useEffect(() => { pausedRef.current = paused; }, [paused]);
+
+  // done → 심어진 꽃, cur_flower_index → 심는 중인 꽃
+  useEffect(() => {
+    const newPlanted = new Set();
+    for (let i = 0; i < robotProgress; i++) newPlanted.add(i);
+    plantedRef.current = newPlanted;
+    currentRef.current = currentFlower > 0 ? currentFlower - 1 : -1;
+  }, [robotProgress, currentFlower]);
 
   const coordList = Object.entries(coords || {})
     .map(([, v]) => v)
@@ -48,6 +51,7 @@ export default function FlowerSimulator({ coords, paused }) {
     ctx.fillStyle = '#0d1117';
     ctx.fillRect(0, 0, W, H);
 
+    // 격자
     for (let c = 0; c <= COLS; c++) {
       const x = 30 + (c / COLS) * (W - 60);
       ctx.strokeStyle = '#1e2a1e'; ctx.lineWidth = 1;
@@ -63,8 +67,10 @@ export default function FlowerSimulator({ coords, paused }) {
 
     if (!coordList.length) return;
 
+    // 빈 자리
     coordList.forEach((c, i) => {
       if (plantedRef.current.has(i)) return;
+      if (i === cur) return;
       const [px, py] = toCanvasGrid(c.x, c.z, W, H);
       ctx.beginPath();
       ctx.arc(px, py, 6, 0, Math.PI * 2);
@@ -72,12 +78,14 @@ export default function FlowerSimulator({ coords, paused }) {
       ctx.setLineDash([2, 3]); ctx.stroke(); ctx.setLineDash([]);
     });
 
+    // 심어진 꽃
     plantedRef.current.forEach(i => {
       if (i >= coordList.length) return;
       const [px, py] = toCanvasGrid(coordList[i].x, coordList[i].z, W, H);
       drawFlower(ctx, px, py, 12, FLOWER_COLORS[i % FLOWER_COLORS.length]);
     });
 
+    // 현재 심는 중
     if (cur >= 0 && cur < coordList.length) {
       const [px, py] = toCanvasGrid(coordList[cur].x, coordList[cur].z, W, H);
       const pulse = Math.abs(Math.sin(frameRef.current * 0.12));
@@ -89,6 +97,7 @@ export default function FlowerSimulator({ coords, paused }) {
       drawFlower(ctx, px, py, 13, FLOWER_COLORS[cur % FLOWER_COLORS.length], 0.7 + pulse * 0.3);
     }
 
+    // 일시정지 오버레이
     if (pausedRef.current) {
       ctx.fillStyle = 'rgba(13,17,23,0.6)';
       ctx.fillRect(0, 0, W, H);
@@ -98,19 +107,20 @@ export default function FlowerSimulator({ coords, paused }) {
       ctx.fillText('⏸ 일시정지', W / 2, H / 2);
     }
 
+    // 진행 텍스트
     ctx.fillStyle = 'rgba(13,17,23,0.85)';
     if (ctx.roundRect) ctx.roundRect(8, H - 36, 200, 28, 6);
     else ctx.rect(8, H - 36, 200, 28);
     ctx.fill();
+    const isComplete = robotTotal > 0 && robotProgress >= robotTotal;
     ctx.fillStyle = pausedRef.current ? '#E67E22' : cur >= 0 ? '#FA5252' : '#40C057';
     ctx.font = 'bold 12px monospace';
     ctx.textAlign = 'left';
-    if (pausedRef.current) ctx.fillText(`⏸ 일시정지 중... ${cur + 1} / ${coordList.length}`, 16, H - 17);
-    else if (cur >= 0) ctx.fillText(`🌸 심는 중... ${cur + 1} / ${coordList.length}`, 16, H - 17);
-    else if (plantedRef.current.size === coordList.length && coordList.length > 0)
-      ctx.fillText(`✅ 완료! ${coordList.length}송이`, 16, H - 17);
-    else ctx.fillText(`대기 중...`, 16, H - 17);
-  }, [coordList, toCanvasGrid]);
+    if (pausedRef.current)  ctx.fillText(`⏸ 일시정지 중... ${robotProgress} / ${robotTotal}`, 16, H - 17);
+    else if (cur >= 0)      ctx.fillText(`🌸 심는 중... ${robotProgress} / ${robotTotal}`, 16, H - 17);
+    else if (isComplete)    ctx.fillText(`✅ 완료! ${robotTotal}송이`, 16, H - 17);
+    else                    ctx.fillText(`대기 중...`, 16, H - 17);
+  }, [coordList, toCanvasGrid, robotProgress, robotTotal]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -123,46 +133,14 @@ export default function FlowerSimulator({ coords, paused }) {
     return () => { window.removeEventListener('resize', resize); cancelAnimationFrame(animRef.current); };
   }, [draw]);
 
-  useEffect(() => {
-    if (!coords || isAnimating) return;
-    startAnimation();
-  }, [coords]);
-
-  const startAnimation = () => {
-    if (isAnimating || !coordList.length) return;
-    plantedRef.current = new Set();
-    setPlantedCount(0);
-    setIsAnimating(true);
-    animIdxRef.current = 0;
-
-    const step = () => {
-      if (pausedRef.current) { setTimeout(step, 200); return; }
-      const idx = animIdxRef.current;
-      if (idx >= coordList.length) {
-        plantedRef.current.add(idx - 1);
-        setPlantedCount(coordList.length);
-        setIsAnimating(false);
-        currentRef.current = -1;
-        setCurrentIdx(-1);
-        return;
-      }
-      if (idx > 0) { plantedRef.current.add(idx - 1); setPlantedCount(idx); }
-      currentRef.current = idx;
-      setCurrentIdx(idx);
-      animIdxRef.current += 1;
-      setTimeout(step, 700);
-    };
-    step();
-  };
-
-  const progress = coordList.length > 0 ? Math.round((plantedCount / coordList.length) * 100) : 0;
+  const progress = robotTotal > 0 ? Math.round((robotProgress / robotTotal) * 100) : 0;
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#0d1117', borderRadius: '16px', overflow: 'hidden' }}>
       <div style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', borderBottom: '1px solid #2a2a3e', flexShrink: 0 }}>
         <span style={{ fontSize: '13px', fontWeight: '700', color: '#e8e8f0', fontFamily: 'monospace' }}>🌸 꽃꽂이 시뮬레이션</span>
         <span style={{ fontSize: '12px', color: paused ? '#E67E22' : '#40C057', fontFamily: 'monospace' }}>
-          {paused ? '⏸ 일시정지' : `${plantedCount} / ${coordList.length} 송이`}
+          {paused ? '⏸ 일시정지' : `${robotProgress} / ${robotTotal} 송이`}
         </span>
       </div>
       <div style={{ height: '4px', backgroundColor: '#2a2a3e', flexShrink: 0 }}>
