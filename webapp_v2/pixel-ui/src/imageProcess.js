@@ -57,17 +57,19 @@ export function preprocessImage(imageData, margin, symmetry) {
   return { normImageData: new ImageData(normArr, NORM_W, NORM_H), grid };
 }
 
-export function gridToCoords(pixelGrid) {
+export function gridToCoords(pixelGrid, symmetry = false) {
   const coords = {};
   let idx = 0;
-  for (let row = ROWS - 1; row >= 0; row--)   // z 작은 것(아래)부터 → row 큰 것부터
-    for (let col = COLS - 1; col >= 0; col--)  // x 큰 것(오른쪽)부터
-      if (pixelGrid[row * COLS + col])
+  for (let row = ROWS - 1; row >= 0; row--)
+    for (let col = 0; col < COLS; col++)  // col 0→8 (반전 후 x 큰 것부터)
+      if (pixelGrid[row * COLS + col]) {
+        const xCol = symmetry ? col : COLS - 1 - col;
         coords[String(idx++)] = {
-          x: Math.round((OUTPUT_BASE_X + CELL_W / 2 + col * (CELL_W + OUTPUT_GAP)) * 10) / 10,
+          x: Math.round((OUTPUT_BASE_X + CELL_W / 2 + xCol * (CELL_W + OUTPUT_GAP)) * 10) / 10,
           y: 2.0,
           z: Math.round((CELL_H / 2 + (ROWS - 1 - row) * CELL_H + OUTPUT_BASE_Z) * 10) / 10,
           rx: 0.0, ry: 180.0, rz: 0.0,
         };
+      }
   return coords;
 }

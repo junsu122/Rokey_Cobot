@@ -235,7 +235,7 @@ export default function App() {
     if (!docId) return;
     setCurrentDocId(docId); setStatus('accepting');
     try {
-      const newCoords = gridToCoords(pixelGrid);
+      const newCoords = gridToCoords(pixelGrid, symmetry);
       await setDoc(doc(db, 'pixel_coords', docId), {
         coords: newCoords, status: 'done', flowerCount, totalPrice,
       });
