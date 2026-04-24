@@ -3,6 +3,8 @@
 
 https://drawing-flower.web.app/
 
+https://console.firebase.google.com/project/drawing-flower/overview
+
 https://www.notion.so/1-3429c0a50e0d8080a62ec49c508a4a99?source=copy_link
 
 
