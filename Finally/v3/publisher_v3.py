@@ -10,7 +10,7 @@ import time
 # CONFIGURATION
 # =========================
 ROBOT_ID = "dsr01"
-SERVICE_ACCOUNT_PATH = "/home/junsu/Downloads/serviceAccountKey.json"
+SERVICE_ACCOUNT_PATH = "/home/ludix/test_23/serviceAccountKey.json"
 
 
 CANCEL_SIGNAL = [0.0] * 6
@@ -95,10 +95,9 @@ class ParameterPublisher(Node):
 
                     #################오프셋주는곳##################
                     if raw not in [CANCEL_SIGNAL, PAUSE_SIGNAL, RESUME_SIGNAL]:
-                        raw[0] += -15.0
+                        raw[0] += 0.0
                         raw[1] += 0.0
-                        raw[2] += -23.0
-
+                        raw[2] += 0.0
                     processed_coords.append(raw)
 
                 flat_data = [val for sublist in processed_coords for val in sublist]
