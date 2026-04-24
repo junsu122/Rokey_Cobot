@@ -50,7 +50,6 @@ cancel_signal_received = False
 basic_process          = True
 re_process             = False
 new_param_received     = False
-posx_dic               = {}
 resume_from_index      = 0
 emergency_triggered = False  # ✅ 비상정지 후 복귀했는지 확인하는 플래그
 
@@ -60,14 +59,16 @@ recovery_approved      = False
 recovery_lock          = threading.Lock()
 
 # ✅ 전역 좌표 딕셔너리
-target_pos_dic     = {}
-target_up_pos_dic  = {}
-target_up_pos_dic1 = {}
-target_up_pos_dic2 = {}
-target_up_pos_dic3 = {}
+posx_dic               = {} ### pub에서 보내주는 좌표 담는 딕셔너리
+insert_flower_pose   = {}
+go_flower_pose  = {}
+go_digonal_pose = {}
+open_and_up = {}
+
 
 HOME_JReady               = [19.20, -6.90, 86.79, 0.07, 100.94, 13.81]
-flower_initial_position_J = [40.25, 27.42, 63.42, 87.97, -40.38, 0.53]
+# flower_initial_position_J = [40.25, 27.42, 63.42, 87.97, -40.38, 0.53]
+flower_initial_position_J = [40.41, 3.62,100.08,74.57,-44.07,18.81] #############new poistion##################
 WAYPOINT_J                = [24.1, 21.51, 77.77, 3.33, 81.80, 23.66]
 
 # =========================
@@ -141,8 +142,8 @@ def recovery_callback(msg):
     global recovery_approved
     node = DR_init.__dsr__node
     if msg.data.strip().upper() == "RECOVER":
-        with recovery_lock:
-            recovery_approved = True
+        with recovery_lock:                     ## 잠금 후
+            recovery_approved = True            ## 승인시 True로 바뀜
         node.get_logger().info("✅ TUI 복구 승인 수신 → 복구 절차 실행")
 
 
@@ -174,7 +175,7 @@ def perform_task():
     )
     global new_param_received, cancel_signal_received, basic_process, re_process
     global pause_signal, current_state, resume_from_index, recovery_approved
-    global target_pos_dic, target_up_pos_dic, target_up_pos_dic1, target_up_pos_dic3
+    global insert_flower_pose, go_flower_pose, go_digonal_pose, open_and_up
     global emergency_triggered  # ✅ 이 줄을 추가하세요!
 
     node = DR_init.__dsr__node
@@ -194,7 +195,7 @@ def perform_task():
             "hw_code":          hw_cache["code"],
             "cur_flower":       resume_from_index + 1,
             "done":             resume_from_index,
-            "total":            len(target_pos_dic),
+            "total":            len(insert_flower_pose),
             "resume_idx":       resume_from_index,
             "countdown":        countdown,
             "log":              log_msg,
@@ -273,7 +274,7 @@ def perform_task():
         while True:
             publish_status(msg, "WARN", waiting_recovery=True)
             rclpy.spin_once(node, timeout_sec=0.2)
-            with recovery_lock:
+            with recovery_lock:                     ## 콜백에서 True로 바꿔줬는지 확인
                 if recovery_approved:
                     recovery_approved = False
                     break
@@ -430,18 +431,18 @@ def perform_task():
                 set_ref_coord(107)
 
                 if resume_from_index == 0:
-                    target_pos_dic     = {}
-                    target_up_pos_dic  = {}
-                    target_up_pos_dic1 = {}
-                    target_up_pos_dic3 = {}
+                    insert_flower_pose     = {}
+                    go_flower_pose  = {}
+                    go_digonal_pose = {}
+                    open_and_up = {}
                     for i in sorted(posx_dic.keys()):
-                        target_pos_dic[i]     = posx(posx_dic[i])
+                        insert_flower_pose[i]     = posx(posx_dic[i])
                         up = posx_dic[i].copy(); up[1] += 30
-                        target_up_pos_dic[i]  = posx(up)
+                        go_flower_pose[i]  = posx(up)
                         up1 = posx_dic[i].copy(); up1[1] += 40; up1[0] -= 70; up1[2] += 50
-                        target_up_pos_dic3[i] = posx(up1)
+                        open_and_up[i] = posx(up1)
                         exit_pos = posx_dic[i].copy(); exit_pos[2] += 60
-                        target_up_pos_dic1[i] = posx(exit_pos)
+                        go_digonal_pose[i] = posx(exit_pos)
 
                 movej(HOME_JReady, vel=HOME_V_J, acc=HOME_ACC_J)
 
@@ -452,7 +453,7 @@ def perform_task():
                 else:
                     gripper_open()
 
-                for i in sorted(target_pos_dic.keys()):
+                for i in sorted(insert_flower_pose.keys()):
                     if i < resume_from_index:
                         continue
 
@@ -471,19 +472,19 @@ def perform_task():
                     safe_movej(WAYPOINT_J, HOME_V_J, HOME_ACC_J, i)
                     wait_for_pause()
 
-                    safe_movel(target_up_pos_dic3[i], TARGET_V_L, TARGET_A_L, i)
+                    safe_movel(open_and_up[i], TARGET_V_L, TARGET_A_L, i)
                     wait_for_pause()
 
-                    safe_movel(target_up_pos_dic[i], TARGET_V_L, TARGET_A_L, i)
+                    safe_movel(go_flower_pose[i], TARGET_V_L, TARGET_A_L, i)
                     wait_for_pause()
 
-                    safe_movel(target_pos_dic[i], INSERT_V_L, INSERT_A_L, i)
+                    safe_movel(insert_flower_pose[i], INSERT_V_L, INSERT_A_L, i)
                     wait_for_pause()
 
                     gripper_open()
                     wait_for_pause()
 
-                    safe_movel(target_up_pos_dic1[i], VELOCITY_L, ACC_L, i)
+                    safe_movel(go_digonal_pose[i], VELOCITY_L, ACC_L, i)
                     wait_for_pause()
 
                     resume_from_index = i + 1
