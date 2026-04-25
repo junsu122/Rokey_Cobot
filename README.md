@@ -47,7 +47,7 @@ pip install firebase-admin
 # TUI Monitoring Library
 pip install textual
 pip install textual-plotext
-
+---
 
 🚀 Execution Guide패키지를 빌드한 후 아래 순서대로 노드를 실행하세요.1. BuildBashcolcon build --packages-select main_robot robot_monitoring
 source install/setup.bash
