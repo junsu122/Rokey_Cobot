@@ -1,0 +1,158 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+  <title>Drawing Flower 웹앱 플로우차트</title>
+  <rect width="1920" height="1080" fill="#FAFAF8"/>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- 범례 -->
+  <rect x="760" y="24" width="400" height="36" rx="8" fill="none" stroke="#ccc" stroke-width="0.5"/>
+  <line x1="780" y1="42" x2="820" y2="42" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="828" y="42" font-size="13" fill="#555" dominant-baseline="central" font-family="sans-serif">정상 흐름</text>
+  <line x1="930" y1="42" x2="970" y2="42" stroke="#555" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <text x="978" y="42" font-size="13" fill="#555" dominant-baseline="central" font-family="sans-serif">취소/중단</text>
+  <line x1="1070" y1="42" x2="1110" y2="42" stroke="#E67E22" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="1118" y="42" font-size="13" fill="#E67E22" dominant-baseline="central" font-family="sans-serif">일시정지/재개</text>
+
+  <!-- ================================================================
+       1행 (y=120~180): 앱시작 → robot구독 → 초기화면 → 픽셀에디터 → 주문확인
+       노드 폭 200, 높이 60, 간격 60
+       x 위치: 60, 320, 580, 840, 1100
+       ================================================================ -->
+
+  <!-- 앱 시작 (x=60~260) -->
+  <rect x="60" y="120" width="200" height="60" rx="30" fill="#F1EFE8" stroke="#888" stroke-width="0.5"/>
+  <text x="160" y="150" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#2C2C2A" font-family="sans-serif">앱 시작</text>
+  <line x1="260" y1="150" x2="320" y2="150" stroke="#555" stroke-width="1" marker-end="url(#arrow)"/>
+
+  <!-- robot_status 구독 (x=320~520) -->
+  <rect x="320" y="120" width="200" height="60" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+  <text x="420" y="140" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#085041" font-family="sans-serif">robot_status 구독</text>
+  <text x="420" y="162" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#0F6E56" font-family="sans-serif">로봇 상태 실시간 수신</text>
+  <line x1="520" y1="150" x2="580" y2="150" stroke="#555" stroke-width="1" marker-end="url(#arrow)"/>
+
+  <!-- 초기화면 (x=580~780) -->
+  <rect x="580" y="120" width="200" height="60" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+  <text x="680" y="140" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#0C447C" font-family="sans-serif">초기화면</text>
+  <text x="680" y="162" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#185FA5" font-family="sans-serif">이미지 선택 / 셀 토글</text>
+  <line x1="780" y1="150" x2="840" y2="150" stroke="#555" stroke-width="1" marker-end="url(#arrow)"/>
+
+  <!-- 픽셀 에디터 (x=840~1040) -->
+  <rect x="840" y="120" width="200" height="60" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+  <text x="940" y="140" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#0C447C" font-family="sans-serif">픽셀 에디터</text>
+  <text x="940" y="162" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#185FA5" font-family="sans-serif">크기 조정 / 대칭 / 셀 토글</text>
+  <line x1="1040" y1="150" x2="1100" y2="150" stroke="#555" stroke-width="1" marker-end="url(#arrow)"/>
+
+  <!-- 주문하기 확인 팝업 (x=1100~1300) -->
+  <rect x="1100" y="120" width="200" height="60" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+  <text x="1200" y="140" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#633806" font-family="sans-serif">주문하기 확인 팝업</text>
+  <text x="1200" y="162" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#854F0B" font-family="sans-serif">송이수 / 가격 확인</text>
+
+  <!-- 주문확인 취소 박스 (x=1100~1240, y=30~70) -->
+  <rect x="1110" y="30" width="170" height="44" rx="8" fill="#F1EFE8" stroke="#888" stroke-width="0.5"/>
+  <text x="1195" y="52" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#2C2C2A" font-family="sans-serif">취소 → 픽셀에디터</text>
+  <!-- 주문확인팝업 → 취소박스 -->
+  <line x1="1200" y1="120" x2="1200" y2="74" stroke="#555" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <!-- 취소박스 → 픽셀에디터 -->
+  <path d="M1110 52 L940 52 L940 120" fill="none" stroke="#555" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+  <!-- 주문확인 → Firestore (x=1300~1360) -->
+  <line x1="1300" y1="150" x2="1360" y2="150" stroke="#555" stroke-width="1" marker-end="url(#arrow)"/>
+
+  <!-- Firestore 좌표 저장 (x=1360~1560) -->
+  <rect x="1360" y="120" width="200" height="60" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+  <text x="1460" y="140" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#085041" font-family="sans-serif">Firestore 좌표 저장</text>
+  <text x="1460" y="162" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#0F6E56" font-family="sans-serif">pixel_coords status: done</text>
+  <line x1="1560" y1="150" x2="1620" y2="150" stroke="#555" stroke-width="1" marker-end="url(#arrow)"/>
+
+  <!-- 꽃꽂이 시뮬레이션 (x=1620~1860) -->
+  <rect x="1620" y="120" width="220" height="60" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+  <text x="1730" y="140" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#3C3489" font-family="sans-serif">꽃꽂이 시뮬레이션</text>
+  <text x="1730" y="162" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#534AB7" font-family="sans-serif">job_status 실시간 구독</text>
+
+  <!-- ================================================================
+       시뮬레이션 → 아래로 내려감 (y=180 ~ y=360)
+       ================================================================ -->
+  <line x1="1730" y1="180" x2="1730" y2="360" stroke="#555" stroke-width="1" marker-end="url(#arrow)"/>
+
+  <!-- 일시정지 박스 (x=1860~1920범위 밖이라 오른쪽 충분히) -->
+  <!-- 일시정지 (x=1620~1760, y=260~310) -->
+  <rect x="1620" y="260" width="140" height="44" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+  <text x="1690" y="282" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#633806" font-family="sans-serif">일시정지</text>
+  <!-- 시뮬레이션 → 일시정지 -->
+  <line x1="1730" y1="260" x2="1730" y2="250" stroke="none"/>
+  <path d="M1730 220 L1690 220 L1690 260" fill="none" stroke="#E67E22" stroke-width="1" marker-end="url(#arrow)"/>
+  <!-- 일시정지 → 시뮬레이션 재개 -->
+  <path d="M1760 282 L1800 282 L1800 220 L1730 220" fill="none" stroke="#E67E22" stroke-width="1" marker-end="url(#arrow)"/>
+  <text x="1812" y="252" text-anchor="start" font-size="11" fill="#E67E22" font-family="sans-serif">재개</text>
+
+  <!-- ================================================================
+       2행 (y=360~420): 진행률 업데이트
+       ================================================================ -->
+
+  <!-- 진행률 업데이트 (x=1560~1840, y=360~420) -->
+  <rect x="1560" y="360" width="240" height="60" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+  <text x="1680" y="380" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#085041" font-family="sans-serif">진행률 업데이트</text>
+  <text x="1680" y="402" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#0F6E56" font-family="sans-serif">cur_flower_index / done 수신</text>
+  <line x1="1680" y1="420" x2="1680" y2="480" stroke="#555" stroke-width="1" marker-end="url(#arrow)"/>
+
+  <!-- done >= total ? (x=1560~1800, y=480~530) -->
+  <rect x="1560" y="480" width="240" height="50" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+  <text x="1680" y="505" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#633806" font-family="sans-serif">done >= total ?</text>
+
+  <!-- 아니오 → 진행률 루프백 (오른쪽) -->
+  <path d="M1800 505 L1860 505 L1860 390 L1800 390" fill="none" stroke="#555" stroke-width="1" marker-end="url(#arrow)"/>
+  <text x="1872" y="450" text-anchor="start" font-size="12" fill="#555" font-family="sans-serif">아니오</text>
+
+  <!-- 예 → 왼쪽으로 -->
+  <line x1="1560" y1="505" x2="1480" y2="505" stroke="#555" stroke-width="1" marker-end="url(#arrow)"/>
+  <text x="1516" y="494" text-anchor="middle" font-size="12" fill="#555" font-family="sans-serif">예</text>
+
+  <!-- 완성 모달 (x=1260~1480, y=480~540) -->
+  <rect x="1260" y="480" width="220" height="60" rx="8" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+  <text x="1370" y="500" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#27500A" font-family="sans-serif">완성 모달 표시</text>
+  <text x="1370" y="522" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#3B6D11" font-family="sans-serif">확인 → 초기화 후 처음으로</text>
+  <line x1="1260" y1="510" x2="1180" y2="510" stroke="#555" stroke-width="1" marker-end="url(#arrow)"/>
+
+  <!-- 초기화 (x=980~1180, y=480~540) -->
+  <rect x="980" y="480" width="200" height="60" rx="30" fill="#F1EFE8" stroke="#888" stroke-width="0.5"/>
+  <text x="1080" y="510" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#2C2C2A" font-family="sans-serif">초기화 (처음으로)</text>
+
+  <!-- ================================================================
+       주문취소 흐름 (3행, y=620~680)
+       ================================================================ -->
+
+  <!-- 시뮬레이션 → 주문취소 (아래로 점선) -->
+  <path d="M1630 180 L1630 620 L1260 620" fill="none" stroke="#FA5252" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <text x="1648" y="400" text-anchor="start" font-size="12" fill="#FA5252" font-family="sans-serif">주문취소</text>
+
+  <!-- 주문취소 confirm 팝업 (x=1060~1260, y=590~650) -->
+  <rect x="1060" y="590" width="200" height="60" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+  <text x="1160" y="610" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#712B13" font-family="sans-serif">주문 취소</text>
+  <text x="1160" y="632" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#993C1D" font-family="sans-serif">confirm 팝업</text>
+
+  <!-- 주문취소 아니오 → 진행률 업데이트 (위로) -->
+  <path d="M1160 590 L1160 530 L1560 530 L1560 480" fill="none" stroke="#555" stroke-width="1" marker-end="url(#arrow)"/>
+  <text x="1360" y="520" text-anchor="middle" font-size="12" fill="#555" font-family="sans-serif">아니오 → 진행률 업데이트</text>
+
+  <!-- 주문취소 예 → 초기화 (왼쪽) -->
+  <path d="M1060 620 L1080 620" fill="none" stroke="none"/>
+  <path d="M1060 620 L980 620 L980 540" fill="none" stroke="#FA5252" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <text x="968" y="580" text-anchor="end" font-size="12" fill="#FA5252" font-family="sans-serif">예</text>
+
+  <!-- ================================================================
+       안전/비상 정지 (4행, y=760~820)
+       ================================================================ -->
+  <rect x="700" y="760" width="200" height="60" rx="8" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+  <text x="800" y="780" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#791F1F" font-family="sans-serif">안전/비상 정지</text>
+  <text x="800" y="802" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#A32D2D" font-family="sans-serif">경고 팝업 자동 표시</text>
+  <text x="800" y="746" text-anchor="middle" font-size="12" fill="#A32D2D" font-family="sans-serif">hw_state 변경 시</text>
+  <line x1="800" y1="752" x2="800" y2="760" stroke="#FA5252" stroke-width="1" marker-end="url(#arrow)"/>
+  <!-- 안전정지 → 시뮬레이션으로 연결선 -->
+  <path d="M900 790 L1730 790 L1730 420" fill="none" stroke="#FA5252" stroke-width="0.8" stroke-dasharray="3 3" opacity="0.5" marker-end="url(#arrow)"/>
+  <text x="1300" y="780" text-anchor="middle" font-size="11" fill="#FA5252" opacity="0.7" font-family="sans-serif">상태 복구 시 자동 해제</text>
+
+</svg>
