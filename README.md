@@ -11,7 +11,7 @@
 ### 1. Node Architecture
 * **`App.jsx`**: 사용자 UI/UX 및 이미지 픽셀화 좌표 생성
 * **`publisher_v4.py`**: Firebase의 명령을 ROS2 토픽(`/new_parameter`)으로 전환 (Downlink)
-* **`drawing_flower_final.py`**: 로봇의 메인 동작 제어 및 FSM(Finite State Machine) 관리
+* **`main_controller.py`**: 로봇의 메인 동작 제어 및 FSM(Finite State Machine) 관리
 * **`monitor_node_v4.py`**: 로봇 상태를 TUI로 표시하고 Firebase에 업로드 (Uplink)
 
 * ### 시스템설계 그림 자리
