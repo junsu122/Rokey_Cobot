@@ -14,7 +14,8 @@
 * **`main_controller.py`**: 로봇의 메인 동작 제어 및 FSM(Finite State Machine) 관리
 * **`monitor_node_v4.py`**: 로봇 상태를 TUI로 표시하고 Firebase에 업로드 (Uplink)
 
-* ### 시스템설계 그림 자리
+<img width="806" height="543" alt="Screenshot from 2026-04-26 21-06-52" src="https://github.com/user-attachments/assets/61d2dc80-5b91-4e14-8d61-d993f7df68f3" />
+
 
 ### 2. Control Flow
 
@@ -23,7 +24,7 @@
 3. **실행**: 메인 노드가 좌표에 따라 로봇 이동 및 그리퍼 제어
 4. **보고**: 모니터 노드가 실시간 진행률 및 HW 상태를 다시 Web으로 전송
 
-5. ### 플로우차트 자리
+<img width="808" height="389" alt="Screenshot from 2026-04-26 21-09-22" src="https://github.com/user-attachments/assets/b400d5bf-1ba4-4aaa-bf99-6a9dd0016471" />
 
 ---
 
