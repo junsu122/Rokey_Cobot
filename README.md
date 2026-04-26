@@ -53,29 +53,34 @@ pip install firebase-admin
 pip install textual
 pip install textual-plotext
 ```
-### 더 필요한게 있는지 확인필요
+
 ---
 ## 🚀 Execution Guide
 패키지를 빌드한 후 아래 순서대로 노드를 실행하세요.
 1. Build
 ```bash
-colcon build --packages-select main_robot robot_monitoring
+colcon build
 source install/setup.bash
 ```
-2. Run Nodes (순서 권장)전용 런치 파일이 없는 경우, 각각의 터미널에서 아래 스크립트를 실행합니다.
-3. 명령 수신 노드 (Firebase → ROS2)
+2. web실행
+[🌐 Web App](https://drawing-flower.web.app/)
+
+3. 로봇 직접 연결
 ```bash
-ros2 run main_robot command_downlink
+ros2 launch  dsr_bringup2 dsr_bringup2_rviz.launch.py mode:=real host:=192.168.1.100 port:=12345 model:=m0609
 ```
-4. 상태 보고 노드 (ROS2 → Firebase)
-```bash
-ros2 run robot_monitoring status_uplink
-```
-5. 로봇 메인 제어 노드
+4. 로봇 메인 제어 노드
 ```bash
 ros2 run main_robot drawing_flower
 ```
-### 우리꺼에 맞춰서 이름들 변경 필요
+5. 메인 제어 노드 정상 연결 후, publiser와 monitoring 코드 실행
+```bash
+ros2 run robot_monitoring monitor 
+```
+```bash
+ros2 run robot_monitoring publisher 
+```
+6. 웹에서 그림파일 넣어서 좌표 전송
 ---
 
 ## ⚠️ Exception Handling
