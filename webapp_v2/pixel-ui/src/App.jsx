@@ -64,7 +64,7 @@ export default function App() {
     if (!robotState.isConnected) return { text: 'DISCONNECTED', color: '#FA5252' };
     switch (robotState.hwState) {
       case 'Moving':     return { text: 'MOVING',    color: '#339AF0' };
-      case 'SAFE_OFF':   return { text: 'SAFE OFF',  color: '#E67E22' };
+      case 'SAFE_OFF':   return { text: 'SAFE OFF',  color: '#E67E22' }; // 사용 안함
       case 'Prot Stop':  return { text: 'PROT STOP', color: '#FA5252' };
       case 'Emrg Stop':  return { text: 'EMRG STOP', color: '#FA5252' };
       default:           return { text: 'READY',     color: '#40C057' };
@@ -374,14 +374,14 @@ export default function App() {
                 marginBottom: '12px', fontFamily: '"Noto Sans KR", sans-serif',
                 letterSpacing: '-0.5px',
               }}>
-                안전 정지 상태입니다
+                안전 정지(충돌 감지) 상태입니다
               </div>
               <div style={{
                 fontSize: '18px', fontWeight: '500', color: '#7F8C8D',
                 fontFamily: '"Noto Sans KR", sans-serif', lineHeight: 1.6,
               }}>
                 장애물을 치워주세요.<br/>
-                <span style={{ fontSize: '15px', color: '#ADB5BD' }}>장애물 제거 시 자동으로 재개됩니다.</span>
+                <span style={{ fontSize: '15px', color: '#ADB5BD' }}>장애물 제거 후 관리자에게 문의하세요.</span>
               </div>
             </div>
           </div>
