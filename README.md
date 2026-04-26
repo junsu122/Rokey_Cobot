@@ -73,7 +73,7 @@ ros2 launch  dsr_bringup2 dsr_bringup2_rviz.launch.py mode:=real host:=192.168.1
 ```bash
 ros2 run main_robot drawing_flower
 ```
-5. 메인 제어 노드 정상 연결 후, publiser와 monitoring 코드 실행
+5. 메인 제어 노드 정상 연결 후, publisher와 monitoring 코드 실행
 ```bash
 ros2 run robot_monitoring monitor 
 ```
@@ -86,8 +86,8 @@ ros2 run robot_monitoring publisher
 ## ⚠️ Exception Handling
 작업 중 발생할 수 있는 예외 상황에 대해 다음과 같은 대응 로직이 포함되어 있습니다.
 - 상황대응 프로세스
-- 1. 꽃 취득 실패모니터링 노드 에러 신호 발생 → 디스펜서 보정(로봇이 흔들기) 수행
-- 2. 삽입 실패힘 체크(Force Check) 후 그리퍼 재파지 및 재시도
-- 3. 안전사고충돌 감지 시 즉시 Protective Stop → Web에 경고 모달 표시
-- 4. 주문 취소사용자 취소 신호 수신 시 즉시 작업 중단 및 Home 위치 복귀
-- 5. 특이점 도달Singularity 회피 경로 재계산
+- 1. 고객이 web상에서 일시정지 했을때
+  2. 고객이 web상에서 일시정지 후 재개 했을때
+  3. 고객이 web상에서 주문취소를 했을때
+  4. 로봇 작업중 일정 충격이 가해져, 일시정지 되었을때 (monitoring 코드에서 'r'을 눌러서 recovery 가능)
+  5. 로봇 작업중 e-stop을 누르게 되어 로봇이 일시정지 되었을때 (e-stop 해제 후, monitoring 코드에서 'r'을 눌러 recovery 가능)
