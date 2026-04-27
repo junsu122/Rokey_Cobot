@@ -6,11 +6,15 @@ import {
 
 export function preprocessImage(imageData, margin, symmetry) {
   const { width, height, data } = imageData;
+
+  // ── Step 1: 흑백 변환 (threshold=210 이진화) ──
   const binary = new Uint8Array(width * height);
   for (let i = 0; i < width * height; i++) {
     const gray = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
     binary[i] = gray < THRESHOLD ? 0 : 255;
   }
+
+  // ── Step 2: 외곽 crop (bounding box) ──────────
   let minX = width, maxX = 0, minY = height, maxY = 0;
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++)
@@ -21,6 +25,7 @@ export function preprocessImage(imageData, margin, symmetry) {
   if (minX > maxX || minY > maxY)
     return { normImageData: null, grid: Array(ROWS * COLS).fill(false) };
 
+  // ── Step 3: 180x160 정규화 + margin 적용 ──────
   const cropW = maxX - minX + 1, cropH = maxY - minY + 1;
   const usableW = Math.max(1, NORM_W - 2 * margin);
   const usableH = Math.max(1, NORM_H - 2 * margin);
@@ -39,6 +44,8 @@ export function preprocessImage(imageData, margin, symmetry) {
       normArr[dstIdx] = normArr[dstIdx+1] = normArr[dstIdx+2] = val;
       normArr[dstIdx+3] = 255;
     }
+
+  // ── Step 4: 8x9 그리드 다운샘플링 ────────────
   let grid = Array(ROWS * COLS).fill(false);
   const cellW = NORM_W / COLS, cellH = NORM_H / ROWS;
   for (let row = 0; row < ROWS; row++)
@@ -47,6 +54,8 @@ export function preprocessImage(imageData, margin, symmetry) {
       const py = Math.floor((row + 0.5) * cellH);
       grid[row * COLS + col] = normArr[(py * NORM_W + px) * 4] < 128;
     }
+
+  // ── Step 5: 좌우 대칭 옵션 적용 ──────────────
   if (symmetry)
     for (let row = 0; row < ROWS; row++)
       for (let col = 0; col < Math.floor(COLS / 2); col++) {
@@ -54,6 +63,7 @@ export function preprocessImage(imageData, margin, symmetry) {
         if (grid[row * COLS + col] || grid[row * COLS + mirror])
           grid[row * COLS + col] = grid[row * COLS + mirror] = true;
       }
+
   return { normImageData: new ImageData(normArr, NORM_W, NORM_H), grid };
 }
 
@@ -61,9 +71,9 @@ export function gridToCoords(pixelGrid, symmetry = false) {
   const coords = {};
   let idx = 0;
   for (let row = ROWS - 1; row >= 0; row--)
-    for (let col = 0; col < COLS; col++)  // col 0→8 (반전 후 x 큰 것부터)
+    for (let col = 0; col < COLS; col++)  // 반전 후 x 큰 것부터
       if (pixelGrid[row * COLS + col]) {
-        const xCol = symmetry ? col : COLS - 1 - col;
+        const xCol = symmetry ? COLS - 1 - col : col;  // 대칭 아닐 때 좌우 반전
         coords[String(idx++)] = {
           x: Math.round((OUTPUT_BASE_X + CELL_W / 2 + xCol * (CELL_W + OUTPUT_GAP)) * 10) / 10,
           y: 2.0,
