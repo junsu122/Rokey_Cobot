@@ -64,8 +64,9 @@ source install/setup.bash
 ```
 2. web실행
 [🌸 drawing-flower.web.app](https://drawing-flower.web.app/)
+-> 웹앱에 사용된 코드를 보려면, webapp_v2/pixel-ui/src 를 확인해주세요
 
-3. 로봇 직접 연결
+4. 로봇 직접 연결
 ```bash
 ros2 launch  dsr_bringup2 dsr_bringup2_rviz.launch.py mode:=real host:=192.168.1.100 port:=12345 model:=m0609
 ```
